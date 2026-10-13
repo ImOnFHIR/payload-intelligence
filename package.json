@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "bootstrap": "node scripts/bootstrap.mjs",
-    "build": "npm run build --workspaces --if-present",
+    "build": "tsc -b && npm run build --workspace @imonfhir/payload-lab",
     "check": "npm run typecheck && npm test && npm run build && npm run spdx:check && npm run license:check && npm run inventory:check && npm audit --audit-level=high",
     "demo:record": "npm run build && tsx scripts/record-demo.ts",
     "dev": "tsx scripts/lab.ts",
