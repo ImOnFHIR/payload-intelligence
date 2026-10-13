@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ClinicalDocument xmlns="urn:hl7-org:v3">
+  <realmCode code="US"/>
+  <recordTarget><patientRole><patient><name><given>Synthetic</given><family>Person</family></name></patient></patientRole></recordTarget>
+  <component><structuredBody><component><section><title>Synthetic section</title><text>Value that must be removed.</text></section></component></structuredBody></component>
+</ClinicalDocument>

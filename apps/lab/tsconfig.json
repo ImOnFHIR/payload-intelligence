@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist-types",
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "WebWorker"],
+    "types": ["vite/client"]
+  },
+  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/contracts" }],
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

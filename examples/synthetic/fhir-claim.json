@@ -1,0 +1,11 @@
+{
+  "resourceType": "Claim",
+  "status": "active",
+  "use": "preauthorization",
+  "type": { "coding": [{ "system": "urn:synthetic", "code": "professional" }] },
+  "patient": { "reference": "Patient/synthetic-member" },
+  "provider": { "reference": "Organization/synthetic-provider" },
+  "insurer": { "reference": "Organization/synthetic-payer" },
+  "priority": { "coding": [{ "code": "normal" }] },
+  "item": [{ "sequence": 1, "productOrService": { "coding": [{ "system": "urn:synthetic", "code": "service" }] } }]
+}

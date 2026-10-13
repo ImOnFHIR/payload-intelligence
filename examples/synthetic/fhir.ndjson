@@ -1,0 +1,2 @@
+{"resourceType":"Patient","active":true}
+{"resourceType":"Observation","status":"completed","subject":{"reference":"Patient/synthetic"},"code":{"coding":[{"system":"urn:synthetic","code":"observation"}]}}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dist-types/
+*.tsbuildinfo
+coverage/
+.DS_Store
+*.log
+.vite/
+playwright-report/
+test-results/
+artifacts/private/

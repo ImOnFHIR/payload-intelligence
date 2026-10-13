@@ -1,0 +1,38 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0",
+  "schemaVersion": "imonfhir.source-origin.v1",
+  "sourceRepository": "https://github.com/ImOnFHIR/imonfhir",
+  "sourceCommit": "12f4e7e9",
+  "imports": [
+    {
+      "destination": "packages/core/src/detection.ts",
+      "source": "src/lib/payload-intelligence/detection.ts",
+      "sourceBlob": "a91bad7b1d3e16b51eca9988549d1066c1a610f7",
+      "adaptation": "Removed standard-specific X12 implementation and renamed the blocked generic EDI class."
+    },
+    {
+      "destination": "packages/core/src/shape-sketch.ts",
+      "source": "src/lib/payload-intelligence/shape-sketch.ts",
+      "sourceBlob": "27baf27fec6052cae4d946f14150e9a587d37e91",
+      "adaptation": "Reduced HL7 structural vocabulary and added a bounded allowlist of non-PHI standard markers."
+    },
+    {
+      "destination": "packages/core/src/xml-envelope.ts",
+      "source": "src/lib/payload-intelligence/xml-envelope.ts",
+      "sourceBlob": "cfeb3c482e77bda81df3ac62d51537f9b266e925",
+      "adaptation": "Module-path and license-header changes only."
+    },
+    {
+      "destination": "packages/core/src/fhir-r4-resource-types.ts",
+      "source": "src/lib/payload-intelligence/fhir-r4-resource-types.ts",
+      "sourceBlob": "618ff36b1ecfc0f644b3f25978f491fd7f985aaf",
+      "adaptation": "License header added; vocabulary remains attributable to the CC0 FHIR specification."
+    },
+    {
+      "destination": "packages/core/src/types.ts",
+      "source": "src/lib/payload-intelligence/types.ts",
+      "sourceBlob": "805fa0b6b6041a68d2733a10111d846d6f8786b6",
+      "adaptation": "Removed the X12-specific format code and introduced a restricted generic EDI result."
+    }
+  ]
+}

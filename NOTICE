@@ -1,0 +1,14 @@
+ImOnFHIR Payload Intelligence Preview
+Copyright 2026 Nick Dugan
+
+This product includes owner-authored code adapted from the private ImOnFHIR
+repository at commit 12f4e7e9. The exact source mapping is recorded in
+ORIGIN.json and the copyright-owner authorization is recorded in
+RELICENSING_ATTESTATION.md.
+
+FHIR resource-type vocabulary was adapted from the HL7 FHIR specification,
+which is published under CC0. FHIR is a registered trademark of Health Level
+Seven International. This project is not endorsed by HL7 International.
+
+No separately licensed terminology, implementation guide package, validator,
+X12 standard content, model weights, or model runtime is included.
