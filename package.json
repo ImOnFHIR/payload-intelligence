@@ -22,7 +22,7 @@
     "mcp:config": "tsx scripts/print-mcp-config.ts",
     "mcp:doctor": "tsx scripts/mcp-doctor.ts",
     "notices:generate": "node scripts/generate-third-party-notices.mjs",
-    "schemas:generate": "tsx scripts/generate-schemas.ts",
+    "schemas:generate": "npm run build --workspace @imonfhir/payload-core && npm run build --workspace @imonfhir/payload-contracts && tsx scripts/generate-schemas.ts",
     "license:check": "node scripts/check-licenses.mjs",
     "test": "tsc -b && vitest run",
     "test:browser": "playwright test",
