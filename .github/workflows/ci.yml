@@ -49,4 +49,4 @@ jobs:
       - run: npm run schemas:generate
       - run: npm run notices:generate
       - run: git diff --exit-code
-      - uses: gitleaks/gitleaks-action@v2
+      - run: npm run secrets:check
