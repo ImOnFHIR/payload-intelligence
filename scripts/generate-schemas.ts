@@ -6,10 +6,16 @@ import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
 import {
   evaluatorCapabilitiesSchema,
+  evaluatorCapabilitiesSchemaV1,
   hostEvaluationCaseSchema,
+  hostEvaluationCaseSchemaV1,
   hostHypothesisReceiptSchema,
+  hostHypothesisReceiptSchemaV1,
   hostHypothesisSubmissionSchema,
+  hostHypothesisSubmissionSchemaV1,
+  nonAuthorHandoffReceiptSchema,
   smeEvaluationRecordSchema,
+  smeEvaluationRecordSchemaV1,
 } from '../packages/contracts/src/validation.js'
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
@@ -17,11 +23,17 @@ const directory = resolve(root, 'packages/contracts/schemas')
 await mkdir(directory, { recursive: true })
 
 const schemas = [
-  ['imonfhir.evaluator-capabilities.v1', evaluatorCapabilitiesSchema],
-  ['imonfhir.host-evaluation-case.v1', hostEvaluationCaseSchema],
-  ['imonfhir.host-hypothesis-submission.v1', hostHypothesisSubmissionSchema],
-  ['imonfhir.host-hypothesis-receipt.v1', hostHypothesisReceiptSchema],
-  ['imonfhir.sme-evaluation-record.v1', smeEvaluationRecordSchema],
+  ['imonfhir.evaluator-capabilities.v1', evaluatorCapabilitiesSchemaV1],
+  ['imonfhir.host-evaluation-case.v1', hostEvaluationCaseSchemaV1],
+  ['imonfhir.host-hypothesis-submission.v1', hostHypothesisSubmissionSchemaV1],
+  ['imonfhir.host-hypothesis-receipt.v1', hostHypothesisReceiptSchemaV1],
+  ['imonfhir.sme-evaluation-record.v1', smeEvaluationRecordSchemaV1],
+  ['imonfhir.evaluator-capabilities.v2', evaluatorCapabilitiesSchema],
+  ['imonfhir.host-evaluation-case.v2', hostEvaluationCaseSchema],
+  ['imonfhir.host-hypothesis-submission.v2', hostHypothesisSubmissionSchema],
+  ['imonfhir.host-hypothesis-receipt.v2', hostHypothesisReceiptSchema],
+  ['imonfhir.sme-evaluation-record.v2', smeEvaluationRecordSchema],
+  ['imonfhir.non-author-handoff-receipt.v1', nonAuthorHandoffReceiptSchema],
 ] as const
 
 for (const [name, schema] of schemas) {

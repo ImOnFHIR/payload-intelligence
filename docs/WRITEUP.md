@@ -2,7 +2,9 @@
 
 SPDX-License-Identifier: Apache-2.0
 
-Written 2026-10-14 against the `main` branch plus the double-launch fix described below. Anything here that can go stale carries a date.
+Written 2026-10-14 against the U2 source candidate based on `main` at `1d21d1a`.
+The U2 non-author and real-host gates remain unexecuted, so no preview release is
+claimed. Anything here that can go stale carries a date.
 
 ## In one screen
 
@@ -28,11 +30,12 @@ The preview makes no compliance, validation or production claim (see [non-claims
 
 ## The problem
 
-Healthcare integration work starts with a question that sounds simple: *what is this payload?* You need to know four things:
+Healthcare integration work starts with a question that sounds simple: *what is this payload?* Useful triage separates concerns that are often blurred together:
 - Which standard and version it follows.
-- Which workflow it belongs to.
-- Which direction it is moving.
-- Who the actors are and where it is going.
+- Which business workflow it may support.
+- Whether its exchange shape is a resource, collection, stream, document, message or record set.
+- Whether the interaction is a request, response or event.
+- Who the source and destination actors may be, and what destination class is plausible.
 
 People who have done this for years answer from structure: segment and resource names, envelope shape, which elements are present. They rarely need the values.
 
@@ -102,17 +105,19 @@ synthetic payload
 
 ### Closed codes, not prose
 
-The host must answer all five axes from a versioned taxonomy (`imonfhir.evaluation-taxonomy.v1`, see [`taxonomy.ts`](../packages/core/src/taxonomy.ts)):
+The host must answer all seven axes from the current versioned taxonomy (`imonfhir.evaluation-taxonomy.v2`, see [`taxonomy.ts`](../packages/core/src/taxonomy.ts)). Format remains deterministic and is not submitted by the host:
 
 | Axis | Example codes |
 |---|---|
 | Standard / version | `FHIR_R4`, `HL7_V2_5_1`, `C_CDA_2_1`, `UNDETERMINED` |
-| Workflow | `PRIOR_AUTHORIZATION`, `RESULT_EXCHANGE`, `BULK_RESOURCE_EXCHANGE` |
-| Direction | `REQUEST`, `RESPONSE`, `EVENT`, `UNKNOWN` |
-| Actor roles | `PAYER_OR_HEALTH_PLAN`, `PROVIDER_OR_CARE_TEAM`, … |
+| Business workflow | `PRIOR_AUTHORIZATION`, `RESULT_REPORTING`, `CARE_COORDINATION` |
+| Exchange pattern | `SINGLE_RESOURCE`, `RESOURCE_STREAM`, `DOCUMENT`, `MESSAGE` |
+| Interaction kind | `REQUEST`, `RESPONSE`, `EVENT`, `UNKNOWN` |
+| Source actor roles | `PROVIDER_OR_CARE_TEAM`, `APPLICATION_OR_DATA_SERVICE`, … |
+| Destination actor roles | `PAYER_OR_HEALTH_PLAN`, `PUBLIC_HEALTH_AGENCY`, … |
 | Destination class | `PAYER_SYSTEM`, `PUBLIC_HEALTH_SYSTEM`, `LOCAL_REVIEW_ONLY`, … |
 
-**Each hypothesis must cite evidence references that the case actually offered.** An "unknown" answer must be explicit, and it must carry a conflict code (for example `DIRECTION_NOT_OBSERVED`) and a matching question code.
+**Each hypothesis must cite evidence references that the case actually offered.** An "unknown" answer must be explicit, and it must carry the conflict code and question code for that specific axis. A destination conflict cannot be attached to a standard/version answer.
 
 **The submission is rejected outright if it contains:**
 - probabilities or confidence fields;
@@ -124,10 +129,12 @@ This is the decision that makes the output useful. Every answer can be compared 
 
 ## The SME correction loop
 
-1. The host's submission appears in the workbench.
-2. Each of the five axes starts as **unreviewed**. Nothing is accepted by default, and the evaluation cannot be saved until every axis has a verdict.
-3. For each axis the SME chooses **Accept**, **Correct** or **Not scorable**. A correction must differ from the host's answer; re-selecting the host's own value is rejected.
-4. Saving writes a sanitized record and purges the active case. Export produces canonical JSONL.
+1. Codex-mode and Claude-mode submissions can both appear against the same approved case.
+2. Draft reviews are keyed by submission digest, so switching hosts does not discard work.
+3. Each of the seven axes plus the missing-question and next-action sets starts as **unreviewed**. Nothing is accepted by default, and the evaluation cannot be saved until every dimension has a verdict.
+4. For each dimension the SME chooses **Accept**, **Correct** or **Not scorable**. A correction must differ from the host's answer; re-selecting the host's own value is rejected.
+5. **Save this evaluation** updates that submission's deterministic record without purging the case. After both desired host records are saved, **Finish and purge case** removes the active case. Export produces canonical taxonomy-v2 JSONL.
+6. Existing taxonomy-v1 browser rows stay in a separate legacy store. They can be exported or cleared, but they are never inferred into v2 or included in v2 comparisons.
 
 **What the record leaves out:**
 - model prose;
@@ -144,7 +151,7 @@ This is the decision that makes the output useful. Every answer can be compared 
 - the approved structural context and its digest;
 - the host kind;
 - the host's closed-code hypotheses and question and next-action codes;
-- for each axis, the verdict, the expected value and whether it was an exact match.
+- for all seven axes and both controlled-code sets, the verdict, the expected value and whether it was an exact match.
 
 ## Evidence
 
@@ -153,30 +160,31 @@ Tests are the evidence standard. A capability is claimed only where a test would
 | Claim | Backed by | Verified how |
 |---|---|---|
 | Raw payload material never reaches or persists in the coordinator; the rendezvous file is private | `test/lab-roundtrip.test.ts` — *uses a private rendezvous and never persists raw payload material* | Unit suite |
-| The host sees exactly three tools with closed input schemas | `test/mcp-protocol.test.ts` — *publishes only the three evaluator tools with closed roots* | Unit suite |
+| The host sees exactly three tools with closed input schemas, including the empty capabilities root | `test/mcp-protocol.test.ts` — *publishes only the three evaluator tools with closed roots* | Unit suite |
 | Fabricated handles, stale digests, unknown evidence, prose and extra fields fail closed | `test/mcp-protocol.test.ts` — *fails closed for fabricated handles, stale digests, unknown evidence, prose, and extra fields* | Unit suite |
 | Confidence and probability fields are rejected | `test/mcp-protocol.test.ts` — *rejects arbitrary confidence fields*; `packages/contracts/test/contracts.test.ts` — *rejects arbitrary prose and probability fields* | Unit suite |
 | Counts are banded and exact byte sizes removed | `contracts.test.ts` — *bands counts, removes exact bytes, and is stable* | Unit suite |
-| Hypotheses may cite only evidence the case offered | `contracts.test.ts` — *rejects evidence not offered by the case* | Unit suite |
-| A correction must differ from the host's answer; "unreviewed" cannot be exported | `contracts.test.ts` — *requires a corrected value to differ from the host hypothesis*; *keeps UNREVIEWED out of the public evaluation-record contract* | Unit suite |
+| Hypotheses bind the exact case material, current contract digests and offered evidence; conflict codes are axis-specific | `contracts.test.ts` — taxonomy-v2 binding and wrong-axis conflict tests | Unit suite |
+| Corrections must differ; exact-match values are derived; all seven axes and both sets are reviewed | `contracts.test.ts` — taxonomy-v2 SME record tests | Unit suite |
 | HL7 OBX/NTE values are not exposed; MSH markers are bounded | `packages/core/test/core.test.ts` — *does not expose OBX or NTE values and emits bounded MSH markers* | Unit suite |
 | XML comments, CDATA, attributes, names and declared metadata are removed; prohibited XML is rejected | `core.test.ts` — *removes XML comments, CDATA, …*; *rejects prohibited XML declarations and excessive input* | Unit suite |
 | EDI-shaped input is blocked without interpretation | `core.test.ts` — *blocks standard-neutral EDI-shaped input without interpreting it* | Unit suite |
 | Submissions are rejected after the user purges a case | `mcp-protocol.test.ts` — *rejects submissions after the user purges the case* | Unit suite |
-| Both host launch modes complete the stdio handshake, without claiming the host is ready | `mcp-protocol.test.ts` — *self-tests both fixed host modes without claiming host readiness* | Unit suite |
+| Both host launch modes complete the stdio handshake; probes do not advance ephemeral host activity | `mcp-protocol.test.ts`, `test/host-activity.test.ts` | Unit suite |
 | Config helpers print and check host configuration without changing it | `test/onboarding-scripts.test.ts` (three tests) | Unit suite |
 | A second lab launch neither strands nor replaces the running lab | `lab-roundtrip.test.ts` — *exits without deleting or replacing the running lab's rendezvous* | Unit suite, plus a manual double launch and MCP self-test |
-| Full UI flow: sample → approve → MCP submission → SME save → purge | `e2e/workbench.spec.ts` | Browser suite |
+| Full dual-host UI flow preserves drafts, saves both records, warns before destructive purge and exports deterministic v2 JSONL | `e2e/workbench.spec.ts` | Browser suite |
+| V1 rows remain isolated; malformed browser rows fail closed; recording view hides transient identifiers and paths | `e2e/workbench.spec.ts` | Browser suite |
 | Every inspection uses a new one-operation Worker | `e2e/workbench.spec.ts` | Browser suite |
 | A custom file requires a synthetic-data assertion; blocked and expired states are explicit | `e2e/workbench.spec.ts` (two tests) | Browser suite |
 
-**Independent reproduction, 2026-10-14.** The following was run on Linux with Node 22.22.0, outside the author's machine:
+**Historical U1 reproduction, 2026-10-14.** The following was run on Linux with Node 22.22.0, outside the author's machine before taxonomy v2 and dual-host review were added:
 - A fresh clone and `npm run bootstrap` succeeded.
 - The unit and integration suite passed: 27/27 at `c5e796d`, and 28/28 with the fix below.
 - The browser suite passed 4/4 against a locally installed Chromium.
 - Typecheck, build, SPDX, license and inventory checks passed.
 
-**Author-reported at `c5e796d`, 2026-10-14** (linked, not independently re-checked):
+**Historical author-reported U1 checks at `c5e796d`, 2026-10-14** (linked, not independently re-checked for U2):
 - [macOS/Linux CI](https://github.com/ImOnFHIR/payload-intelligence/actions/runs/38512602357) passed.
 - [CodeQL](https://github.com/ImOnFHIR/payload-intelligence/actions/runs/38512600907) passed.
 - There were no open CodeQL, Dependabot, secret-scanning, or high or critical audit findings.
@@ -207,7 +215,7 @@ Reverting each of the three changes on its own turns the test red.
 
 ## What is not proven
 
-- **No real host run.** The tests launch the same stdio commands the hosts are configured with and exercise the protocol contract. They do not prove that Codex or Claude Desktop loaded the server, or that local MCP is allowed under a given workspace policy. The [walkthrough video](media/synthetic-mcp-workbench-demo.mp4) uses a deterministic protocol harness, not a model, and says so on screen.
+- **No real host run yet.** The tests launch the same stdio commands the hosts are configured with and exercise the protocol contract. They do not prove that Codex or Claude Desktop loaded the server, or that local MCP is allowed under a given workspace policy. The read-only doctor reports saved configuration, local launch, exact tool contract and ephemeral mode activity separately. Mode activity is not authenticated identity. The [walkthrough video](media/synthetic-mcp-workbench-demo.mp4) uses a deterministic protocol harness, not a model, and says so on screen.
 - **No non-author run.** No one other than the author has completed the workflow with a real host configuration. This is the remaining release gate.
 - **No model-quality result.** The workbench is built to *produce* that evidence. It does not yet contain any.
 - **Synthetic data only.** Same-user malware, memory inspection, screenshots, clipboard capture and a compromised host are out of scope. Browser and JavaScript garbage collectors may keep copies despite best-effort overwrites.
@@ -221,17 +229,13 @@ Reverting each of the three changes on its own turns the test red.
 
 ## What's next
 
-1. **Run the release gate, with criteria written first.** One SME who is not the author runs the README from a clean machine with a real host. **Pass means all of the following:**
-   - a saved evaluation without author help;
-   - the time to first saved evaluation is recorded;
-   - every point where they got stuck is logged;
-   - when the host was not connected, they could tell from the screen.
+1. **Run the frozen U2 release gate.** One SME who is not the author uses the exact candidate on macOS, from a clone path containing spaces, without owner coaching. Both real hosts must submit against one case; both evaluations must be saved; a separate user-supplied synthetic case must include a correction and a not-scorable verdict; v2 JSONL must export; the case must purge; and the participant must explain the non-claims. See the [controlled checklist](handoff/U2_NON_AUTHOR_SMOKE_TEST.md).
 2. **Name what the JSONL is for.** The correction loop is the artifact. The next step is to decide which decision 20–50 corrected evaluations should inform: which axis hosts get wrong most often, or whether the structural summary is missing a marker experts rely on. Then collect toward that decision.
 3. **Smaller known gaps (2026-10-14).**
-   - Node is pinned to 22.x while current LTS releases are newer.
+   - The developer preview is pinned to Node 22.22.3; later Node lines are intentionally untested here.
    - The README lists macOS as the requirement while CI also runs Linux.
    - The `/api/*` routes do not validate the `Host` header. The exposure is limited to an active-case count, but the fix is one line.
 
 ## Run it
 
-See the [README](../README.md#five-minute-start). From a clean clone it takes two commands: `npm run bootstrap`, then `npm run lab`.
+See the [README](../README.md#ten-minute-start). From a clean clone it takes two commands: `npm run bootstrap`, then `npm run lab`.

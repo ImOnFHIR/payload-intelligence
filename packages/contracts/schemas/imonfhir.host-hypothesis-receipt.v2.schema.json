@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://imonfhir.com/schemas/imonfhir.host-hypothesis-receipt.v2.schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "imonfhir.host-hypothesis-receipt.v2"
+    },
+    "taxonomyVersion": {
+      "type": "string",
+      "const": "imonfhir.evaluation-taxonomy.v2"
+    },
+    "contractDigests": {
+      "type": "object",
+      "properties": {
+        "taxonomy": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "evaluatorCapabilities": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hostEvaluationCase": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hostHypothesisSubmission": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hostHypothesisReceipt": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "smeEvaluationRecord": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "taxonomy",
+        "evaluatorCapabilities",
+        "hostEvaluationCase",
+        "hostHypothesisSubmission",
+        "hostHypothesisReceipt",
+        "smeEvaluationRecord"
+      ],
+      "additionalProperties": false
+    },
+    "caseHandle": {
+      "type": "string",
+      "pattern": "^ec_[a-f0-9]{32}$"
+    },
+    "caseDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "submissionId": {
+      "type": "string",
+      "pattern": "^hs_[a-f0-9]{32}$"
+    },
+    "submissionDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "hypothesisDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "hostKind": {
+      "type": "string",
+      "enum": [
+        "CODEX",
+        "CLAUDE_DESKTOP"
+      ]
+    },
+    "state": {
+      "type": "string",
+      "const": "PENDING_SME_REVIEW"
+    },
+    "deduplicated": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "taxonomyVersion",
+    "contractDigests",
+    "caseHandle",
+    "caseDigest",
+    "submissionId",
+    "submissionDigest",
+    "hypothesisDigest",
+    "hostKind",
+    "state",
+    "deduplicated"
+  ],
+  "additionalProperties": false
+}

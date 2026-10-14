@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://imonfhir.com/schemas/imonfhir.evaluator-capabilities.v2.schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "imonfhir.evaluator-capabilities.v2"
+    },
+    "mode": {
+      "type": "string",
+      "const": "HOST_ASSISTED_SME_EVALUATION"
+    },
+    "bundledModel": {
+      "type": "boolean",
+      "const": false
+    },
+    "supportedHosts": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "string",
+          "const": "CODEX"
+        },
+        {
+          "type": "string",
+          "const": "CLAUDE_DESKTOP"
+        }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "caseCreation": {
+      "type": "string",
+      "const": "UI_ONLY_EXPLICIT_APPROVAL"
+    },
+    "hostReceives": {
+      "type": "string",
+      "const": "APPROVED_STRUCTURAL_SUMMARY_ONLY"
+    },
+    "probabilitiesAccepted": {
+      "type": "boolean",
+      "const": false
+    },
+    "freeTextAccepted": {
+      "type": "boolean",
+      "const": false
+    },
+    "rawPayloadAccepted": {
+      "type": "boolean",
+      "const": false
+    },
+    "syntheticOnly": {
+      "type": "boolean",
+      "const": true
+    },
+    "taxonomyVersion": {
+      "type": "string",
+      "const": "imonfhir.evaluation-taxonomy.v2"
+    },
+    "contractDigests": {
+      "type": "object",
+      "properties": {
+        "taxonomy": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "evaluatorCapabilities": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hostEvaluationCase": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hostHypothesisSubmission": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hostHypothesisReceipt": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "smeEvaluationRecord": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "taxonomy",
+        "evaluatorCapabilities",
+        "hostEvaluationCase",
+        "hostHypothesisSubmission",
+        "hostHypothesisReceipt",
+        "smeEvaluationRecord"
+      ],
+      "additionalProperties": false
+    },
+    "recognizedFormats": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "FHIR_JSON",
+          "FHIR_XML",
+          "FHIR_NDJSON",
+          "HL7_V2_ER7",
+          "CDA_XML",
+          "RESTRICTED_EDI_UNSUPPORTED",
+          "GENERIC_JSON",
+          "GENERIC_XML",
+          "DELIMITED_TEXT",
+          "PDF",
+          "DICOM",
+          "ARCHIVE",
+          "UNKNOWN_TEXT",
+          "UNKNOWN_BINARY"
+        ]
+      }
+    },
+    "hostEligibleFormats": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "FHIR_JSON",
+          "FHIR_XML",
+          "FHIR_NDJSON",
+          "HL7_V2_ER7",
+          "CDA_XML",
+          "RESTRICTED_EDI_UNSUPPORTED",
+          "GENERIC_JSON",
+          "GENERIC_XML",
+          "DELIMITED_TEXT",
+          "PDF",
+          "DICOM",
+          "ARCHIVE",
+          "UNKNOWN_TEXT",
+          "UNKNOWN_BINARY"
+        ]
+      }
+    },
+    "hostBlockedFormats": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "FHIR_JSON",
+          "FHIR_XML",
+          "FHIR_NDJSON",
+          "HL7_V2_ER7",
+          "CDA_XML",
+          "RESTRICTED_EDI_UNSUPPORTED",
+          "GENERIC_JSON",
+          "GENERIC_XML",
+          "DELIMITED_TEXT",
+          "PDF",
+          "DICOM",
+          "ARCHIVE",
+          "UNKNOWN_TEXT",
+          "UNKNOWN_BINARY"
+        ]
+      }
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "maxPayloadBytes": {
+          "type": "number",
+          "const": 8000000
+        },
+        "maxJsonDepth": {
+          "type": "number",
+          "const": 64
+        },
+        "maxNdjsonLines": {
+          "type": "number",
+          "const": 10000
+        },
+        "maxNdjsonLineBytes": {
+          "type": "number",
+          "const": 1000000
+        },
+        "maxHl7Segments": {
+          "type": "number",
+          "const": 10000
+        },
+        "maxEvidenceItems": {
+          "type": "number",
+          "const": 300
+        },
+        "caseTtlSeconds": {
+          "type": "number",
+          "const": 14400
+        }
+      },
+      "required": [
+        "maxPayloadBytes",
+        "maxJsonDepth",
+        "maxNdjsonLines",
+        "maxNdjsonLineBytes",
+        "maxHl7Segments",
+        "maxEvidenceItems",
+        "caseTtlSeconds"
+      ],
+      "additionalProperties": false
+    },
+    "limitations": {
+      "minItems": 5,
+      "maxItems": 5,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "SYNTHETIC_DATA_ONLY",
+          "NOT_A_VALIDATOR",
+          "NOT_CALIBRATED",
+          "NO_CLINICAL_OR_PAYER_DECISIONS",
+          "HOST_PROVIDER_MAY_RECEIVE_APPROVED_SUMMARY"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "mode",
+    "bundledModel",
+    "supportedHosts",
+    "caseCreation",
+    "hostReceives",
+    "probabilitiesAccepted",
+    "freeTextAccepted",
+    "rawPayloadAccepted",
+    "syntheticOnly",
+    "taxonomyVersion",
+    "contractDigests",
+    "recognizedFormats",
+    "hostEligibleFormats",
+    "hostBlockedFormats",
+    "limits",
+    "limitations"
+  ],
+  "additionalProperties": false
+}

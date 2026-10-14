@@ -1,6 +1,6 @@
 {
   "name": "@imonfhir/payload-mcp",
-  "version": "0.1.0-preview.0",
+  "version": "0.1.0-preview",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
@@ -12,8 +12,8 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@imonfhir/payload-contracts": "0.1.0-preview.0",
-    "@imonfhir/payload-core": "0.1.0-preview.0",
+    "@imonfhir/payload-contracts": "0.1.0-preview",
+    "@imonfhir/payload-core": "0.1.0-preview",
     "@modelcontextprotocol/sdk": "1.32.1",
     "zod": "4.6.7"
   }

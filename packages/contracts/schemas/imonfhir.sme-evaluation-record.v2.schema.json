@@ -1,0 +1,1348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://imonfhir.com/schemas/imonfhir.sme-evaluation-record.v2.schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "imonfhir.sme-evaluation-record.v2"
+    },
+    "recordId": {
+      "type": "string",
+      "pattern": "^sr_[a-f0-9]{32}$"
+    },
+    "taxonomyVersion": {
+      "type": "string",
+      "const": "imonfhir.evaluation-taxonomy.v2"
+    },
+    "contractDigests": {
+      "type": "object",
+      "properties": {
+        "taxonomy": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "evaluatorCapabilities": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hostEvaluationCase": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hostHypothesisSubmission": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hostHypothesisReceipt": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "smeEvaluationRecord": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "taxonomy",
+        "evaluatorCapabilities",
+        "hostEvaluationCase",
+        "hostHypothesisSubmission",
+        "hostHypothesisReceipt",
+        "smeEvaluationRecord"
+      ],
+      "additionalProperties": false
+    },
+    "contextDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "imonfhir.approved-case-material.v1"
+        },
+        "observation": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "DETECTED",
+                "AMBIGUOUS",
+                "OPAQUE",
+                "UNKNOWN",
+                "REJECTED"
+              ]
+            },
+            "observedFormat": {
+              "type": "string",
+              "enum": [
+                "FHIR_JSON",
+                "FHIR_XML",
+                "FHIR_NDJSON",
+                "HL7_V2_ER7",
+                "CDA_XML",
+                "RESTRICTED_EDI_UNSUPPORTED",
+                "GENERIC_JSON",
+                "GENERIC_XML",
+                "DELIMITED_TEXT",
+                "PDF",
+                "DICOM",
+                "ARCHIVE",
+                "UNKNOWN_TEXT",
+                "UNKNOWN_BINARY"
+              ]
+            },
+            "candidates": {
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "FHIR_JSON",
+                      "FHIR_XML",
+                      "FHIR_NDJSON",
+                      "HL7_V2_ER7",
+                      "CDA_XML",
+                      "RESTRICTED_EDI_UNSUPPORTED",
+                      "GENERIC_JSON",
+                      "GENERIC_XML",
+                      "DELIMITED_TEXT",
+                      "PDF",
+                      "DICOM",
+                      "ARCHIVE",
+                      "UNKNOWN_TEXT",
+                      "UNKNOWN_BINARY"
+                    ]
+                  },
+                  "signature": {
+                    "type": "string",
+                    "enum": [
+                      "DETERMINISTIC",
+                      "HEURISTIC",
+                      "OPAQUE_MAGIC"
+                    ]
+                  },
+                  "evidenceCodes": {
+                    "maxItems": 32,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Z0-9_]{2,80}$"
+                    }
+                  }
+                },
+                "required": [
+                  "format",
+                  "signature",
+                  "evidenceCodes"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "conflictCodes": {
+              "maxItems": 16,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z0-9_]{2,80}$"
+              }
+            },
+            "issueCodes": {
+              "maxItems": 16,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z0-9_]{2,80}$"
+              }
+            }
+          },
+          "required": [
+            "status",
+            "candidates",
+            "conflictCodes",
+            "issueCodes"
+          ],
+          "additionalProperties": false
+        },
+        "structuralSummary": {
+          "type": "object",
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "imonfhir.approved-structural-summary.v1"
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "FHIR_JSON",
+                "FHIR_XML",
+                "FHIR_NDJSON",
+                "HL7_V2_ER7",
+                "CDA_XML",
+                "RESTRICTED_EDI_UNSUPPORTED",
+                "GENERIC_JSON",
+                "GENERIC_XML",
+                "DELIMITED_TEXT",
+                "PDF",
+                "DICOM",
+                "ARCHIVE",
+                "UNKNOWN_TEXT",
+                "UNKNOWN_BINARY"
+              ]
+            },
+            "evidenceItems": {
+              "minItems": 2,
+              "maxItems": 300,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "ref": {
+                        "type": "string",
+                        "pattern": "^ev_[a-f0-9]{16}$"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "FORMAT"
+                      },
+                      "code": {
+                        "type": "string",
+                        "enum": [
+                          "FHIR_JSON",
+                          "FHIR_XML",
+                          "FHIR_NDJSON",
+                          "HL7_V2_ER7",
+                          "CDA_XML",
+                          "RESTRICTED_EDI_UNSUPPORTED",
+                          "GENERIC_JSON",
+                          "GENERIC_XML",
+                          "DELIMITED_TEXT",
+                          "PDF",
+                          "DICOM",
+                          "ARCHIVE",
+                          "UNKNOWN_TEXT",
+                          "UNKNOWN_BINARY"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "ref",
+                      "kind",
+                      "code"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "ref": {
+                        "type": "string",
+                        "pattern": "^ev_[a-f0-9]{16}$"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "DETECTOR"
+                      },
+                      "code": {
+                        "type": "string",
+                        "pattern": "^[A-Z0-9_]{2,80}$"
+                      }
+                    },
+                    "required": [
+                      "ref",
+                      "kind",
+                      "code"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "ref": {
+                        "type": "string",
+                        "pattern": "^ev_[a-f0-9]{16}$"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "SHAPE"
+                      },
+                      "code": {
+                        "type": "string",
+                        "enum": [
+                          "COMPLETE",
+                          "TRUNCATED"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "ref",
+                      "kind",
+                      "code"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "ref": {
+                        "type": "string",
+                        "pattern": "^ev_[a-f0-9]{16}$"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "AGGREGATE"
+                      },
+                      "code": {
+                        "type": "string",
+                        "enum": [
+                          "LINES",
+                          "RECORDS",
+                          "SEGMENTS",
+                          "ELEMENTS"
+                        ]
+                      },
+                      "countBand": {
+                        "type": "string",
+                        "enum": [
+                          "ZERO",
+                          "ONE",
+                          "TWO_TO_FIVE",
+                          "SIX_TO_TWENTY",
+                          "TWENTY_ONE_TO_ONE_HUNDRED",
+                          "OVER_ONE_HUNDRED"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "ref",
+                      "kind",
+                      "code",
+                      "countBand"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "ref": {
+                        "type": "string",
+                        "pattern": "^ev_[a-f0-9]{16}$"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "FEATURE"
+                      },
+                      "feature": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "STRUCTURAL_NAME",
+                              "DATA_TYPE",
+                              "COUNT",
+                              "SAFE_MARKER"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "structuralPath": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9_$./\\[\\]-]{1,512}$"
+                          },
+                          "dataType": {
+                            "type": "string",
+                            "enum": [
+                              "object",
+                              "array",
+                              "string",
+                              "number",
+                              "boolean",
+                              "null",
+                              "element",
+                              "segment"
+                            ]
+                          },
+                          "countBand": {
+                            "type": "string",
+                            "enum": [
+                              "ZERO",
+                              "ONE",
+                              "TWO_TO_FIVE",
+                              "SIX_TO_TWENTY",
+                              "TWENTY_ONE_TO_ONE_HUNDRED",
+                              "OVER_ONE_HUNDRED"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "ref",
+                      "kind",
+                      "feature"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "safety": {
+              "type": "object",
+              "properties": {
+                "payloadValuesAbsent": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "identifiersAbsent": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "freeTextAbsent": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "binaryContentAbsent": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "unknownNamesHashed": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "exactCountsAbsent": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "payloadValuesAbsent",
+                "identifiersAbsent",
+                "freeTextAbsent",
+                "binaryContentAbsent",
+                "unknownNamesHashed",
+                "exactCountsAbsent"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "format",
+            "evidenceItems",
+            "safety"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "observation",
+        "structuralSummary"
+      ],
+      "additionalProperties": false
+    },
+    "hostKind": {
+      "type": "string",
+      "enum": [
+        "CODEX",
+        "CLAUDE_DESKTOP"
+      ]
+    },
+    "hypothesisDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "submissionDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "hypotheses": {
+      "type": "object",
+      "properties": {
+        "standardVersion": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "string",
+              "enum": [
+                "FHIR_R4",
+                "FHIR_R4B",
+                "FHIR_R5",
+                "HL7_V2_3",
+                "HL7_V2_3_1",
+                "HL7_V2_4",
+                "HL7_V2_5",
+                "HL7_V2_5_1",
+                "HL7_V2_6",
+                "HL7_V2_7",
+                "HL7_V2_7_1",
+                "HL7_V2_8",
+                "HL7_V2_8_1",
+                "HL7_V2_8_2",
+                "HL7_V2_9",
+                "CDA_R2",
+                "C_CDA_2_1",
+                "C_CDA_3_0",
+                "UNDETERMINED",
+                "NOT_APPLICABLE"
+              ]
+            },
+            "evidenceRefs": {
+              "minItems": 1,
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^ev_[a-f0-9]{16}$"
+              }
+            },
+            "conflictCodes": {
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DECLARED_METADATA_CONFLICT",
+                  "DETERMINISTIC_FORMAT_CONFLICT",
+                  "INSUFFICIENT_STRUCTURAL_EVIDENCE",
+                  "SHAPE_SKETCH_TRUNCATED",
+                  "STANDARD_VERSION_NOT_OBSERVED"
+                ]
+              }
+            }
+          },
+          "required": [
+            "value",
+            "evidenceRefs",
+            "conflictCodes"
+          ],
+          "additionalProperties": false
+        },
+        "businessWorkflow": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "string",
+              "enum": [
+                "PRIOR_AUTHORIZATION",
+                "PATIENT_ADMINISTRATION",
+                "ORDER_MANAGEMENT",
+                "RESULT_REPORTING",
+                "CLINICAL_DOCUMENTATION",
+                "PUBLIC_HEALTH_REPORTING",
+                "CARE_COORDINATION",
+                "UNKNOWN_OR_OTHER",
+                "NOT_APPLICABLE"
+              ]
+            },
+            "evidenceRefs": {
+              "minItems": 1,
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^ev_[a-f0-9]{16}$"
+              }
+            },
+            "conflictCodes": {
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DECLARED_METADATA_CONFLICT",
+                  "DETERMINISTIC_FORMAT_CONFLICT",
+                  "INSUFFICIENT_STRUCTURAL_EVIDENCE",
+                  "SHAPE_SKETCH_TRUNCATED",
+                  "BUSINESS_WORKFLOW_NOT_OBSERVED",
+                  "MULTIPLE_BUSINESS_WORKFLOWS_PLAUSIBLE"
+                ]
+              }
+            }
+          },
+          "required": [
+            "value",
+            "evidenceRefs",
+            "conflictCodes"
+          ],
+          "additionalProperties": false
+        },
+        "exchangePattern": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "string",
+              "enum": [
+                "SINGLE_RESOURCE",
+                "RESOURCE_COLLECTION",
+                "RESOURCE_STREAM",
+                "DOCUMENT",
+                "MESSAGE",
+                "DELIMITED_RECORD_SET",
+                "GENERIC_STRUCTURED_OBJECT",
+                "UNKNOWN",
+                "NOT_APPLICABLE"
+              ]
+            },
+            "evidenceRefs": {
+              "minItems": 1,
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^ev_[a-f0-9]{16}$"
+              }
+            },
+            "conflictCodes": {
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DECLARED_METADATA_CONFLICT",
+                  "DETERMINISTIC_FORMAT_CONFLICT",
+                  "INSUFFICIENT_STRUCTURAL_EVIDENCE",
+                  "SHAPE_SKETCH_TRUNCATED",
+                  "EXCHANGE_PATTERN_NOT_OBSERVED"
+                ]
+              }
+            }
+          },
+          "required": [
+            "value",
+            "evidenceRefs",
+            "conflictCodes"
+          ],
+          "additionalProperties": false
+        },
+        "interactionKind": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "string",
+              "enum": [
+                "REQUEST",
+                "RESPONSE",
+                "EVENT",
+                "UNKNOWN",
+                "NOT_APPLICABLE"
+              ]
+            },
+            "evidenceRefs": {
+              "minItems": 1,
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^ev_[a-f0-9]{16}$"
+              }
+            },
+            "conflictCodes": {
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DECLARED_METADATA_CONFLICT",
+                  "DETERMINISTIC_FORMAT_CONFLICT",
+                  "INSUFFICIENT_STRUCTURAL_EVIDENCE",
+                  "SHAPE_SKETCH_TRUNCATED",
+                  "INTERACTION_KIND_NOT_OBSERVED"
+                ]
+              }
+            }
+          },
+          "required": [
+            "value",
+            "evidenceRefs",
+            "conflictCodes"
+          ],
+          "additionalProperties": false
+        },
+        "sourceActorRoles": {
+          "type": "object",
+          "properties": {
+            "values": {
+              "minItems": 1,
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PATIENT_OR_MEMBER",
+                  "PROVIDER_OR_CARE_TEAM",
+                  "PAYER_OR_HEALTH_PLAN",
+                  "HEALTH_INFORMATION_NETWORK_OR_EXCHANGE",
+                  "PUBLIC_HEALTH_AGENCY",
+                  "APPLICATION_OR_DATA_SERVICE",
+                  "OTHER",
+                  "UNKNOWN"
+                ]
+              }
+            },
+            "evidenceRefs": {
+              "minItems": 1,
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^ev_[a-f0-9]{16}$"
+              }
+            },
+            "conflictCodes": {
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DECLARED_METADATA_CONFLICT",
+                  "DETERMINISTIC_FORMAT_CONFLICT",
+                  "INSUFFICIENT_STRUCTURAL_EVIDENCE",
+                  "SHAPE_SKETCH_TRUNCATED",
+                  "SOURCE_ACTOR_ROLES_NOT_OBSERVED"
+                ]
+              }
+            }
+          },
+          "required": [
+            "values",
+            "evidenceRefs",
+            "conflictCodes"
+          ],
+          "additionalProperties": false
+        },
+        "destinationActorRoles": {
+          "type": "object",
+          "properties": {
+            "values": {
+              "minItems": 1,
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PATIENT_OR_MEMBER",
+                  "PROVIDER_OR_CARE_TEAM",
+                  "PAYER_OR_HEALTH_PLAN",
+                  "HEALTH_INFORMATION_NETWORK_OR_EXCHANGE",
+                  "PUBLIC_HEALTH_AGENCY",
+                  "APPLICATION_OR_DATA_SERVICE",
+                  "OTHER",
+                  "UNKNOWN"
+                ]
+              }
+            },
+            "evidenceRefs": {
+              "minItems": 1,
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^ev_[a-f0-9]{16}$"
+              }
+            },
+            "conflictCodes": {
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DECLARED_METADATA_CONFLICT",
+                  "DETERMINISTIC_FORMAT_CONFLICT",
+                  "INSUFFICIENT_STRUCTURAL_EVIDENCE",
+                  "SHAPE_SKETCH_TRUNCATED",
+                  "DESTINATION_ACTOR_ROLES_NOT_OBSERVED"
+                ]
+              }
+            }
+          },
+          "required": [
+            "values",
+            "evidenceRefs",
+            "conflictCodes"
+          ],
+          "additionalProperties": false
+        },
+        "destinationClass": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "string",
+              "enum": [
+                "PROVIDER_SYSTEM",
+                "PAYER_SYSTEM",
+                "PATIENT_APPLICATION",
+                "HEALTH_INFORMATION_NETWORK_OR_EXCHANGE",
+                "PUBLIC_HEALTH_SYSTEM",
+                "DATA_PLATFORM_OR_REPOSITORY",
+                "LOCAL_REVIEW_ONLY",
+                "OTHER",
+                "UNKNOWN"
+              ]
+            },
+            "evidenceRefs": {
+              "minItems": 1,
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^ev_[a-f0-9]{16}$"
+              }
+            },
+            "conflictCodes": {
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DECLARED_METADATA_CONFLICT",
+                  "DETERMINISTIC_FORMAT_CONFLICT",
+                  "INSUFFICIENT_STRUCTURAL_EVIDENCE",
+                  "SHAPE_SKETCH_TRUNCATED",
+                  "DESTINATION_CLASS_NOT_OBSERVED"
+                ]
+              }
+            }
+          },
+          "required": [
+            "value",
+            "evidenceRefs",
+            "conflictCodes"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "standardVersion",
+        "businessWorkflow",
+        "exchangePattern",
+        "interactionKind",
+        "sourceActorRoles",
+        "destinationActorRoles",
+        "destinationClass"
+      ],
+      "additionalProperties": false
+    },
+    "missingContextQuestionCodes": {
+      "maxItems": 7,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "CONFIRM_STANDARD_VERSION",
+          "CONFIRM_BUSINESS_WORKFLOW",
+          "CONFIRM_EXCHANGE_PATTERN",
+          "CONFIRM_INTERACTION_KIND",
+          "CONFIRM_SOURCE_ACTOR_ROLES",
+          "CONFIRM_DESTINATION_ACTOR_ROLES",
+          "CONFIRM_DESTINATION_CLASS"
+        ]
+      }
+    },
+    "proposedNextActionCodes": {
+      "maxItems": 10,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "ASK_TARGETED_CONTEXT",
+          "REVIEW_DETERMINISTIC_EVIDENCE",
+          "REVIEW_STANDARD_VERSION_HYPOTHESIS",
+          "REVIEW_BUSINESS_WORKFLOW_HYPOTHESIS",
+          "REVIEW_EXCHANGE_PATTERN_HYPOTHESIS",
+          "REVIEW_INTERACTION_KIND_HYPOTHESIS",
+          "REVIEW_SOURCE_ACTOR_HYPOTHESES",
+          "REVIEW_DESTINATION_ACTOR_HYPOTHESES",
+          "REVIEW_DESTINATION_CLASS_HYPOTHESIS",
+          "STOP_UNSUPPORTED_FORMAT"
+        ]
+      }
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "standardVersion": {
+          "type": "object",
+          "properties": {
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "ACCEPTED",
+                "CORRECTED",
+                "NOT_SCORABLE"
+              ]
+            },
+            "expected": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FHIR_R4",
+                    "FHIR_R4B",
+                    "FHIR_R5",
+                    "HL7_V2_3",
+                    "HL7_V2_3_1",
+                    "HL7_V2_4",
+                    "HL7_V2_5",
+                    "HL7_V2_5_1",
+                    "HL7_V2_6",
+                    "HL7_V2_7",
+                    "HL7_V2_7_1",
+                    "HL7_V2_8",
+                    "HL7_V2_8_1",
+                    "HL7_V2_8_2",
+                    "HL7_V2_9",
+                    "CDA_R2",
+                    "C_CDA_2_1",
+                    "C_CDA_3_0",
+                    "UNDETERMINED",
+                    "NOT_APPLICABLE"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "exactMatch": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "verdict",
+            "expected",
+            "exactMatch"
+          ],
+          "additionalProperties": false
+        },
+        "businessWorkflow": {
+          "type": "object",
+          "properties": {
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "ACCEPTED",
+                "CORRECTED",
+                "NOT_SCORABLE"
+              ]
+            },
+            "expected": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "PRIOR_AUTHORIZATION",
+                    "PATIENT_ADMINISTRATION",
+                    "ORDER_MANAGEMENT",
+                    "RESULT_REPORTING",
+                    "CLINICAL_DOCUMENTATION",
+                    "PUBLIC_HEALTH_REPORTING",
+                    "CARE_COORDINATION",
+                    "UNKNOWN_OR_OTHER",
+                    "NOT_APPLICABLE"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "exactMatch": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "verdict",
+            "expected",
+            "exactMatch"
+          ],
+          "additionalProperties": false
+        },
+        "exchangePattern": {
+          "type": "object",
+          "properties": {
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "ACCEPTED",
+                "CORRECTED",
+                "NOT_SCORABLE"
+              ]
+            },
+            "expected": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "SINGLE_RESOURCE",
+                    "RESOURCE_COLLECTION",
+                    "RESOURCE_STREAM",
+                    "DOCUMENT",
+                    "MESSAGE",
+                    "DELIMITED_RECORD_SET",
+                    "GENERIC_STRUCTURED_OBJECT",
+                    "UNKNOWN",
+                    "NOT_APPLICABLE"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "exactMatch": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "verdict",
+            "expected",
+            "exactMatch"
+          ],
+          "additionalProperties": false
+        },
+        "interactionKind": {
+          "type": "object",
+          "properties": {
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "ACCEPTED",
+                "CORRECTED",
+                "NOT_SCORABLE"
+              ]
+            },
+            "expected": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "REQUEST",
+                    "RESPONSE",
+                    "EVENT",
+                    "UNKNOWN",
+                    "NOT_APPLICABLE"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "exactMatch": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "verdict",
+            "expected",
+            "exactMatch"
+          ],
+          "additionalProperties": false
+        },
+        "sourceActorRoles": {
+          "type": "object",
+          "properties": {
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "ACCEPTED",
+                "CORRECTED",
+                "NOT_SCORABLE"
+              ]
+            },
+            "expected": {
+              "anyOf": [
+                {
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "PATIENT_OR_MEMBER",
+                      "PROVIDER_OR_CARE_TEAM",
+                      "PAYER_OR_HEALTH_PLAN",
+                      "HEALTH_INFORMATION_NETWORK_OR_EXCHANGE",
+                      "PUBLIC_HEALTH_AGENCY",
+                      "APPLICATION_OR_DATA_SERVICE",
+                      "OTHER",
+                      "UNKNOWN"
+                    ]
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "exactMatch": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "verdict",
+            "expected",
+            "exactMatch"
+          ],
+          "additionalProperties": false
+        },
+        "destinationActorRoles": {
+          "type": "object",
+          "properties": {
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "ACCEPTED",
+                "CORRECTED",
+                "NOT_SCORABLE"
+              ]
+            },
+            "expected": {
+              "anyOf": [
+                {
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "PATIENT_OR_MEMBER",
+                      "PROVIDER_OR_CARE_TEAM",
+                      "PAYER_OR_HEALTH_PLAN",
+                      "HEALTH_INFORMATION_NETWORK_OR_EXCHANGE",
+                      "PUBLIC_HEALTH_AGENCY",
+                      "APPLICATION_OR_DATA_SERVICE",
+                      "OTHER",
+                      "UNKNOWN"
+                    ]
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "exactMatch": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "verdict",
+            "expected",
+            "exactMatch"
+          ],
+          "additionalProperties": false
+        },
+        "destinationClass": {
+          "type": "object",
+          "properties": {
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "ACCEPTED",
+                "CORRECTED",
+                "NOT_SCORABLE"
+              ]
+            },
+            "expected": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "PROVIDER_SYSTEM",
+                    "PAYER_SYSTEM",
+                    "PATIENT_APPLICATION",
+                    "HEALTH_INFORMATION_NETWORK_OR_EXCHANGE",
+                    "PUBLIC_HEALTH_SYSTEM",
+                    "DATA_PLATFORM_OR_REPOSITORY",
+                    "LOCAL_REVIEW_ONLY",
+                    "OTHER",
+                    "UNKNOWN"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "exactMatch": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "verdict",
+            "expected",
+            "exactMatch"
+          ],
+          "additionalProperties": false
+        },
+        "missingContextQuestionCodes": {
+          "type": "object",
+          "properties": {
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "ACCEPTED",
+                "CORRECTED",
+                "NOT_SCORABLE"
+              ]
+            },
+            "expected": {
+              "anyOf": [
+                {
+                  "maxItems": 7,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "CONFIRM_STANDARD_VERSION",
+                      "CONFIRM_BUSINESS_WORKFLOW",
+                      "CONFIRM_EXCHANGE_PATTERN",
+                      "CONFIRM_INTERACTION_KIND",
+                      "CONFIRM_SOURCE_ACTOR_ROLES",
+                      "CONFIRM_DESTINATION_ACTOR_ROLES",
+                      "CONFIRM_DESTINATION_CLASS"
+                    ]
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "exactMatch": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "verdict",
+            "expected",
+            "exactMatch"
+          ],
+          "additionalProperties": false
+        },
+        "proposedNextActionCodes": {
+          "type": "object",
+          "properties": {
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "ACCEPTED",
+                "CORRECTED",
+                "NOT_SCORABLE"
+              ]
+            },
+            "expected": {
+              "anyOf": [
+                {
+                  "maxItems": 10,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "ASK_TARGETED_CONTEXT",
+                      "REVIEW_DETERMINISTIC_EVIDENCE",
+                      "REVIEW_STANDARD_VERSION_HYPOTHESIS",
+                      "REVIEW_BUSINESS_WORKFLOW_HYPOTHESIS",
+                      "REVIEW_EXCHANGE_PATTERN_HYPOTHESIS",
+                      "REVIEW_INTERACTION_KIND_HYPOTHESIS",
+                      "REVIEW_SOURCE_ACTOR_HYPOTHESES",
+                      "REVIEW_DESTINATION_ACTOR_HYPOTHESES",
+                      "REVIEW_DESTINATION_CLASS_HYPOTHESIS",
+                      "STOP_UNSUPPORTED_FORMAT"
+                    ]
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "exactMatch": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "verdict",
+            "expected",
+            "exactMatch"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "standardVersion",
+        "businessWorkflow",
+        "exchangePattern",
+        "interactionKind",
+        "sourceActorRoles",
+        "destinationActorRoles",
+        "destinationClass",
+        "missingContextQuestionCodes",
+        "proposedNextActionCodes"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "recordId",
+    "taxonomyVersion",
+    "contractDigests",
+    "contextDigest",
+    "context",
+    "hostKind",
+    "hypothesisDigest",
+    "submissionDigest",
+    "hypotheses",
+    "missingContextQuestionCodes",
+    "proposedNextActionCodes",
+    "review"
+  ],
+  "additionalProperties": false
+}

@@ -1,6 +1,6 @@
 {
   "name": "@imonfhir/payload-core",
-  "version": "0.1.0-preview.0",
+  "version": "0.1.0-preview",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",

@@ -11,7 +11,11 @@ import { promisify } from 'node:util'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { chromium, type Page } from 'playwright'
-import type { HostEvaluationCase, HostHypothesisSubmission } from '@imonfhir/payload-contracts'
+import {
+  CONTRACT_DIGESTS_V2,
+  type HostEvaluationCase,
+  type HostHypothesisSubmission,
+} from '@imonfhir/payload-contracts'
 
 const execute = promisify(execFile)
 const root = resolve('.')
@@ -70,8 +74,11 @@ async function installRecordingMask(page: Page): Promise<void> {
       document.querySelectorAll('code.handle').forEach(function (element) {
         if (element.textContent && element.textContent.startsWith('ec_')) element.textContent = 'EPHEMERAL CASE HANDLE WITHHELD';
       });
-      document.querySelectorAll('.records article code').forEach(function (element) {
+      document.querySelectorAll('.record-title code').forEach(function (element) {
         if (element.textContent && element.textContent.startsWith('sr_')) element.textContent = 'SANITIZED RECORD ID WITHHELD';
+      });
+      document.querySelectorAll('.record-group-heading code').forEach(function (element) {
+        element.textContent = 'SANITIZED CONTEXT DIGEST WITHHELD';
       });
     };
     mask();
@@ -139,13 +146,18 @@ async function main(): Promise<void> {
     const evidenceRef = approved.structuralSummary.evidenceItems[0]?.ref
     if (!evidenceRef) throw new Error('DEMO_MISSING_EVIDENCE')
     const submission: HostHypothesisSubmission = {
+      schemaVersion: 'imonfhir.host-hypothesis-submission.v2',
+      taxonomyVersion: 'imonfhir.evaluation-taxonomy.v2',
+      contractDigests: CONTRACT_DIGESTS_V2,
       caseHandle: approved.caseHandle,
       caseDigest: approved.caseDigest,
       hypotheses: {
         standardVersion: { value: 'FHIR_R4', evidenceRefs: [evidenceRef], conflictCodes: [] },
-        workflow: { value: 'PRIOR_AUTHORIZATION', evidenceRefs: [evidenceRef], conflictCodes: [] },
-        direction: { value: 'REQUEST', evidenceRefs: [evidenceRef], conflictCodes: [] },
-        actorRoles: { values: ['PAYER_OR_HEALTH_PLAN', 'PROVIDER_OR_CARE_TEAM'], evidenceRefs: [evidenceRef], conflictCodes: [] },
+        businessWorkflow: { value: 'PRIOR_AUTHORIZATION', evidenceRefs: [evidenceRef], conflictCodes: [] },
+        exchangePattern: { value: 'SINGLE_RESOURCE', evidenceRefs: [evidenceRef], conflictCodes: [] },
+        interactionKind: { value: 'REQUEST', evidenceRefs: [evidenceRef], conflictCodes: [] },
+        sourceActorRoles: { values: ['PROVIDER_OR_CARE_TEAM'], evidenceRefs: [evidenceRef], conflictCodes: [] },
+        destinationActorRoles: { values: ['PAYER_OR_HEALTH_PLAN'], evidenceRefs: [evidenceRef], conflictCodes: [] },
         destinationClass: { value: 'PAYER_SYSTEM', evidenceRefs: [evidenceRef], conflictCodes: [] },
       },
       missingContextQuestionCodes: [],
@@ -160,22 +172,32 @@ async function main(): Promise<void> {
     await assertVisibleSurfaceSafe(page, [evaluationCase.caseHandle])
     await page.waitForTimeout(2_500)
     const standardVersion = page.locator('.axis-card').filter({ hasText: 'Standard / version' })
-    const workflow = page.locator('.axis-card').filter({ hasText: 'Workflow' })
-    const direction = page.locator('.axis-card').filter({ hasText: 'Direction' })
-    const actorRoles = page.locator('.axis-card').filter({ hasText: 'Actor roles' })
+    const workflow = page.locator('.axis-card').filter({ hasText: 'Business workflow' })
+    const exchangePattern = page.locator('.axis-card').filter({ hasText: 'Exchange pattern' })
+    const interactionKind = page.locator('.axis-card').filter({ hasText: 'Interaction kind' })
+    const sourceActors = page.locator('.axis-card').filter({ hasText: 'Source actor roles' })
+    const destinationActors = page.locator('.axis-card').filter({ hasText: 'Destination actor roles' })
     const destinationClass = page.locator('.axis-card').filter({ hasText: 'Destination class' })
+    const questions = page.locator('.axis-card').filter({ hasText: 'Missing-context questions' })
+    const actions = page.locator('.axis-card').filter({ hasText: 'Next actions' })
     await standardVersion.getByRole('button', { name: 'Accept' }).click()
     await workflow.scrollIntoViewIfNeeded()
     await workflow.getByRole('button', { name: 'Correct' }).click()
-    await workflow.locator('select').selectOption('RESOURCE_EXCHANGE')
-    await direction.getByRole('button', { name: 'Accept' }).click()
-    await actorRoles.getByRole('button', { name: 'Accept' }).click()
+    await workflow.locator('select').selectOption('CARE_COORDINATION')
+    await exchangePattern.getByRole('button', { name: 'Accept' }).click()
+    await interactionKind.getByRole('button', { name: 'Accept' }).click()
+    await sourceActors.getByRole('button', { name: 'Accept' }).click()
+    await destinationActors.getByRole('button', { name: 'Accept' }).click()
     await destinationClass.getByRole('button', { name: 'Accept' }).click()
+    await questions.getByRole('button', { name: 'Accept' }).click()
+    await actions.getByRole('button', { name: 'Accept' }).click()
     await page.waitForTimeout(1_800)
-    const saveButton = page.getByRole('button', { name: 'Save evaluation & purge case' })
+    const saveButton = page.getByRole('button', { name: 'Save this evaluation' })
     await saveButton.scrollIntoViewIfNeeded()
     await page.waitForTimeout(1_000)
     await saveButton.click()
+    await page.getByText('Codex-mode evaluation saved. The case remains available for the other host.').waitFor()
+    await page.getByRole('button', { name: 'Finish and purge case' }).click()
     await page.getByRole('heading', { name: '1 evaluation' }).waitFor()
     await assertVisibleSurfaceSafe(page, [evaluationCase.caseHandle])
     await page.waitForTimeout(3_000)
