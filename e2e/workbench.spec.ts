@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
+import { canonicalJson } from '../packages/contracts/src/canonical.js'
 
 test('sample → approve → MCP submission → SME save → purge', async ({ page, request }) => {
   await page.goto('/')
@@ -11,6 +12,15 @@ test('sample → approve → MCP submission → SME save → purge', async ({ pa
   await page.getByRole('button', { name: /FHIR JSON/ }).click()
   await expect(page.getByRole('heading', { name: 'FHIR_JSON' })).toBeVisible()
   await expect(page.getByText('synthetic-member')).toHaveCount(0)
+  const projectionText = (await page.getByTestId('approved-case-projection').textContent())!
+  const approvedProjection = JSON.parse(projectionText) as {
+    schemaVersion: string
+    observation: unknown
+    structuralSummary: unknown
+  }
+  expect(projectionText).toBe(canonicalJson(approvedProjection))
+  expect(projectionText).toContain('"structuralPath"')
+  expect(projectionText).toContain('"countBand"')
 
   await page.getByRole('button', { name: 'Approve summary for AI host' }).click()
   await expect(page.getByRole('heading', { name: 'Case is available' })).toBeVisible()
@@ -23,8 +33,14 @@ test('sample → approve → MCP submission → SME save → purge', async ({ pa
   })
   const evaluationCase = await caseResponse.json() as {
     caseDigest: string
+    observation: unknown
     structuralSummary: { evidenceItems: Array<{ ref: string }> }
   }
+  expect(approvedProjection).toEqual({
+    schemaVersion: 'imonfhir.approved-case-material.v1',
+    observation: evaluationCase.observation,
+    structuralSummary: evaluationCase.structuralSummary,
+  })
   const evidenceRef = evaluationCase.structuralSummary.evidenceItems[0]!.ref
   const submission = {
     caseHandle,
@@ -52,12 +68,23 @@ test('sample → approve → MCP submission → SME save → purge', async ({ pa
   expect(submitResponse.status()).toBe(201)
 
   await expect(page.getByRole('heading', { name: 'Correct the host, not the payload' })).toBeVisible({ timeout: 3_000 })
+  const saveButton = page.getByRole('button', { name: 'Save evaluation & purge case' })
+  await expect(saveButton).toBeDisabled()
+  const standardVersion = page.locator('.axis-card').filter({ hasText: 'Standard / version' })
   const workflow = page.locator('.axis-card').filter({ hasText: 'Workflow' })
+  const actorRoles = page.locator('.axis-card').filter({ hasText: 'Actor roles' })
+  const destinationClass = page.locator('.axis-card').filter({ hasText: 'Destination class' })
+  await standardVersion.getByRole('button', { name: 'Accept' }).click()
   await workflow.getByRole('button', { name: 'Correct' }).click()
-  await workflow.locator('select').selectOption('RESOURCE_EXCHANGE')
   const direction = page.locator('.axis-card').filter({ hasText: 'Direction' })
   await direction.getByRole('button', { name: 'Not scorable' }).click()
-  await page.getByRole('button', { name: 'Save evaluation & purge case' }).click()
+  await actorRoles.getByRole('button', { name: 'Accept' }).click()
+  await destinationClass.getByRole('button', { name: 'Accept' }).click()
+  await expect(saveButton).toBeDisabled()
+  await expect(page.getByText('A correction must differ from the host hypothesis.')).toBeVisible()
+  await workflow.locator('select').selectOption('RESOURCE_EXCHANGE')
+  await expect(saveButton).toBeEnabled()
+  await saveButton.click()
   await expect(page.getByRole('heading', { name: '1 evaluation' })).toBeVisible()
 
   const firstDownloadEvent = page.waitForEvent('download')

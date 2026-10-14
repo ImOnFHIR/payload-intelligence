@@ -79,7 +79,8 @@ describe('value-minimized shape sketch', () => {
     const valueCanary = 'XML_VALUE_CANARY_41729'
     const nameCanary = 'secretCanaryElement'
     const metadataCanary = 'METADATA_CANARY_88214'
-    const xml = `<ClinicalDocument xmlns="urn:hl7-org:v3" ${nameCanary}="${valueCanary}"><!--${valueCanary}--><component><${nameCanary}><![CDATA[${valueCanary}]]></${nameCanary}></component></ClinicalDocument>`
+    const repetitiveComment = '<'.repeat(100_000)
+    const xml = `<?probe ${valueCanary}?><ClinicalDocument xmlns="urn:hl7-org:v3" ${nameCanary}="${valueCanary}"><!--${repetitiveComment}${valueCanary}--><component><${nameCanary}><![CDATA[${valueCanary}]]></${nameCanary}></component></ClinicalDocument>`
     const inspection = await inspectPayload(new TextEncoder().encode(xml), {
       fileName: `${metadataCanary}.xml`,
       contentType: `application/xml; profile=${metadataCanary}`,
@@ -88,6 +89,7 @@ describe('value-minimized shape sketch', () => {
     expect(serialized).not.toContain(valueCanary)
     expect(serialized).not.toContain(nameCanary)
     expect(serialized).not.toContain(metadataCanary)
+    expect(serialized).not.toContain('probe')
     expect(serialized).toMatch(/element_[a-f0-9]{12}/)
   })
 

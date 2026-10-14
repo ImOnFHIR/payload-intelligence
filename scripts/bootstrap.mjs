@@ -19,3 +19,4 @@ run('npm', ['run', 'build'])
 
 process.stdout.write('\nReady. Start the workbench with:\n\n  npm run lab\n\n')
 process.stdout.write('Print MCP setup instructions with:\n\n  npm run mcp:config -- codex\n  npm run mcp:config -- claude\n\n')
+process.stdout.write('After the lab starts, test the local MCP launch contract with:\n\n  npm run mcp:self-test -- both\n\nThis does not prove either AI host loaded the configuration.\n\n')

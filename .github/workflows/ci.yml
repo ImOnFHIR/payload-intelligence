@@ -28,8 +28,9 @@ jobs:
       - run: npm test
       - if: matrix.os == 'ubuntu-latest'
         run: npx playwright install --with-deps chromium
-      - if: matrix.os == 'ubuntu-latest'
-        run: npm run test:browser
+      - if: matrix.os == 'macos-latest'
+        run: npx playwright install chromium
+      - run: npm run test:browser
 
   policy:
     runs-on: ubuntu-latest

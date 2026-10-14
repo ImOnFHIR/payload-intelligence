@@ -21,11 +21,12 @@ The useful artifact is the correction loop. This repository does not include a b
 
 ## Five-minute start
 
-Requirements: macOS, Git, and Node.js 22.
+Requirements: macOS, Git, and Node.js 22.22.3. The repository includes `.nvmrc` and `.node-version` for common version managers.
 
 ```bash
 git clone https://github.com/ImOnFHIR/payload-intelligence.git
 cd payload-intelligence
+nvm use # or: fnm use
 npm run bootstrap
 npm run lab
 ```
@@ -41,13 +42,33 @@ npm run mcp:config -- codex
 npm run mcp:config -- claude
 ```
 
-These commands print configuration; they do not edit your Codex or Claude settings. Restart the host after adding the configuration, keep the lab running, and check the local connection with:
+These commands print configuration; they do not edit your Codex or Claude settings. After adding the configuration, fully quit and reopen the host and keep the lab running.
+
+Test both local server launch modes directly from the repository:
 
 ```bash
-npm run mcp:doctor
+npm run mcp:self-test -- both
 ```
 
+This is a local protocol self-test. It launches the same commands configured for both hosts, checks the stdio handshake and three-tool contract, and calls `payload_capabilities`. It does **not** inspect either host's settings or prove that Codex or Claude Desktop loaded the server.
+
+Claude Desktop users can also check the saved JSON against this checkout without changing the file:
+
+```bash
+npm run mcp:config:check -- claude
+```
+
+Actual host readiness requires opening that host, confirming `imonfhir_payload` is available, and successfully calling `payload_capabilities` while the lab is running.
+
 Setup follows the current [Codex local MCP configuration](https://developers.openai.com/codex/extend/mcp) and [Claude Desktop local MCP guidance](https://support.anthropic.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop). Local MCP availability can still depend on the host version and workspace policy.
+
+### Setup troubleshooting
+
+- **Wrong Node version:** run `nvm use` or `fnm use`, then confirm `node --version` reports `v22.22.3` before rerunning `npm run bootstrap`.
+- **Local self-test cannot reach the lab:** keep `npm run lab` running in another terminal and retry `npm run mcp:self-test -- both`.
+- **Self-test passes but a host shows no server:** regenerate that host's snippet, confirm its absolute Node and checkout paths are still current, fully quit and reopen the host, and check whether workspace policy permits local MCP servers.
+- **Claude configuration is rejected:** run `npm run mcp:config:check -- claude`; it reads the file but never rewrites it. Then regenerate the snippet and merge valid JSON carefully.
+- **A case is stale or expired:** return to the workbench, inspect and approve a new synthetic case, and give the new instruction to the host.
 
 ## Use the workbench
 

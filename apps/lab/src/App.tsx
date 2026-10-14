@@ -30,6 +30,7 @@ import { clearRecords, listRecords, saveRecord } from './db.js'
 
 type Screen = 'START' | 'EVALUATE' | 'RESULTS'
 type HostRoundtripState = 'WAITING' | 'RECEIVED' | 'STALE' | 'EXPIRED'
+type ReviewVerdict = AxisVerdict | 'UNREVIEWED'
 
 interface SubmissionEnvelope {
   hostKind: HostKind
@@ -37,13 +38,22 @@ interface SubmissionEnvelope {
   receipt: { submissionId: string; submissionDigest: string }
 }
 
-interface ScalarReview<T extends string> { verdict: AxisVerdict; expected: T }
+interface ScalarReview<T extends string> { verdict: ReviewVerdict; expected: T }
 interface ReviewState {
   standardVersion: ScalarReview<StandardVersion>
   workflow: ScalarReview<Workflow>
   direction: ScalarReview<Direction>
-  actorRoles: { verdict: AxisVerdict; expected: ActorRole[] }
+  actorRoles: { verdict: ReviewVerdict; expected: ActorRole[] }
   destinationClass: ScalarReview<DestinationClass>
+}
+
+interface CompletedScalarReview<T extends string> extends ScalarReview<T> { verdict: AxisVerdict }
+interface CompletedReviewState extends ReviewState {
+  standardVersion: CompletedScalarReview<StandardVersion>
+  workflow: CompletedScalarReview<Workflow>
+  direction: CompletedScalarReview<Direction>
+  actorRoles: { verdict: AxisVerdict; expected: ActorRole[] }
+  destinationClass: CompletedScalarReview<DestinationClass>
 }
 
 const samples = [
@@ -79,20 +89,42 @@ function runInspection(message: unknown): Promise<ApprovedCaseMaterial> {
 
 function initialReview(submission: HostHypothesisSubmission): ReviewState {
   return {
-    standardVersion: { verdict: 'ACCEPTED', expected: submission.hypotheses.standardVersion.value },
-    workflow: { verdict: 'ACCEPTED', expected: submission.hypotheses.workflow.value },
-    direction: { verdict: 'ACCEPTED', expected: submission.hypotheses.direction.value },
-    actorRoles: { verdict: 'ACCEPTED', expected: [...submission.hypotheses.actorRoles.values] },
-    destinationClass: { verdict: 'ACCEPTED', expected: submission.hypotheses.destinationClass.value },
+    standardVersion: { verdict: 'UNREVIEWED', expected: submission.hypotheses.standardVersion.value },
+    workflow: { verdict: 'UNREVIEWED', expected: submission.hypotheses.workflow.value },
+    direction: { verdict: 'UNREVIEWED', expected: submission.hypotheses.direction.value },
+    actorRoles: { verdict: 'UNREVIEWED', expected: [...submission.hypotheses.actorRoles.values] },
+    destinationClass: { verdict: 'UNREVIEWED', expected: submission.hypotheses.destinationClass.value },
   }
 }
 
-function exactScalar<T extends string>(review: ScalarReview<T>, actual: T): boolean | null {
+function exactScalar<T extends string>(review: CompletedScalarReview<T>, actual: T): boolean | null {
   return review.verdict === 'NOT_SCORABLE' ? null : review.expected === actual
 }
 
 function equalActors(left: ActorRole[], right: ActorRole[]): boolean {
   return [...left].sort().join('|') === [...right].sort().join('|')
+}
+
+function completedReview(review: ReviewState): review is CompletedReviewState {
+  return review.standardVersion.verdict !== 'UNREVIEWED' &&
+    review.workflow.verdict !== 'UNREVIEWED' &&
+    review.direction.verdict !== 'UNREVIEWED' &&
+    review.actorRoles.verdict !== 'UNREVIEWED' &&
+    review.destinationClass.verdict !== 'UNREVIEWED'
+}
+
+function reviewProblem(review: ReviewState, submission: HostHypothesisSubmission): string | null {
+  if (!completedReview(review)) return 'Review all five axes before saving.'
+  if (review.actorRoles.verdict === 'CORRECTED' && review.actorRoles.expected.length === 0) {
+    return 'Select at least one expected actor role.'
+  }
+  const unchangedCorrection =
+    (review.standardVersion.verdict === 'CORRECTED' && review.standardVersion.expected === submission.hypotheses.standardVersion.value) ||
+    (review.workflow.verdict === 'CORRECTED' && review.workflow.expected === submission.hypotheses.workflow.value) ||
+    (review.direction.verdict === 'CORRECTED' && review.direction.expected === submission.hypotheses.direction.value) ||
+    (review.actorRoles.verdict === 'CORRECTED' && equalActors(review.actorRoles.expected, submission.hypotheses.actorRoles.values)) ||
+    (review.destinationClass.verdict === 'CORRECTED' && review.destinationClass.expected === submission.hypotheses.destinationClass.value)
+  return unchangedCorrection ? 'A correction must differ from the host hypothesis.' : null
 }
 
 function downloadJsonl(records: SmeEvaluationRecord[]): void {
@@ -117,7 +149,7 @@ function HostSetupCard({ title, command }: { title: string; command: string }) {
   </article>
 }
 
-function VerdictButtons({ value, onChange }: { value: AxisVerdict; onChange: (value: AxisVerdict) => void }) {
+function VerdictButtons({ value, onChange }: { value: ReviewVerdict; onChange: (value: AxisVerdict) => void }) {
   return <div className="segmented" role="group" aria-label="SME verdict">
     {(['ACCEPTED', 'CORRECTED', 'NOT_SCORABLE'] as const).map((option) =>
       <button key={option} className={value === option ? 'selected' : ''} onClick={() => onChange(option)}>
@@ -231,10 +263,10 @@ export function App() {
 
   const save = async () => {
     if (!material || !evaluationCase || !selected || !review) return
-    if (review.actorRoles.verdict === 'CORRECTED' && review.actorRoles.expected.length === 0) {
-      setError('SELECT_AT_LEAST_ONE_ACTOR_ROLE'); return
-    }
     const submission = selected.submission
+    const problem = reviewProblem(review, submission)
+    if (problem) { setError(problem); return }
+    if (!completedReview(review)) return
     const recordBase = {
       schemaVersion: 'imonfhir.sme-evaluation-record.v1' as const,
       taxonomyVersion: 'imonfhir.evaluation-taxonomy.v1' as const,
@@ -262,6 +294,7 @@ export function App() {
 
   const hostPrompt = evaluationCase ? `Use the ImOnFHIR Payload Intelligence MCP. Call payload_get_evaluation_case with caseHandle ${evaluationCase.caseHandle}. Use only its approved structural summary. Submit every required closed-code hypothesis with payload_submit_hypotheses. Do not ask for or infer raw payload values.` : ''
   const blocked = material ? ['RESTRICTED_EDI_UNSUPPORTED', 'PDF', 'DICOM', 'ARCHIVE', 'UNKNOWN_BINARY'].includes(material.structuralSummary.format) || ['REJECTED', 'OPAQUE'].includes(material.observation.status) : false
+  const currentReviewProblem = selected && review ? reviewProblem(review, selected.submission) : null
   const matchSummary = useMemo(() => {
     const values = records.flatMap((record) => Object.values(record.review).map((axis) => axis.exactMatch)).filter((value): value is boolean => value !== null)
     return { correct: values.filter(Boolean).length, scored: values.length }
@@ -283,10 +316,10 @@ export function App() {
       {screen === 'EVALUATE' && material && <>
         <div className="crumbs"><button onClick={() => void purge()}>← Start</button><span>Deterministic inspection</span><span>AI-host hypothesis</span><span>SME review</span></div>
         <section className="case-hero"><div><span className="eyebrow">Observed format</span><h1>{material.observation.observedFormat ?? material.structuralSummary.format}</h1><p>Status: {material.observation.status} · {material.structuralSummary.evidenceItems.length} sanitized evidence items</p></div><div className={`status-card ${blocked ? 'blocked' : ''}`}><strong>{blocked ? 'Host exposure blocked' : 'Ready for your approval'}</strong><span>{blocked ? 'This format or parser outcome cannot be sent to an AI host.' : 'Review the summary below before creating a short-lived case.'}</span></div></section>
-        <div className="case-layout"><section className="panel"><span className="eyebrow">Approved summary candidate</span><h2>What the host can see</h2><div className="safety-grid"><span>✓ No payload values</span><span>✓ No identifiers</span><span>✓ No free text</span><span>✓ Counts are banded</span></div><details><summary>Inspect structural evidence</summary><div className="evidence-list">{material.structuralSummary.evidenceItems.map((item) => <code key={item.ref}>{item.ref} · {item.kind} · {'code' in item ? item.code : item.feature.name}</code>)}</div></details>{!evaluationCase && <><p className="boundary-copy">Approving makes this structural summary—not the payload—available to your configured AI host. That host may send it to its provider.</p><button className="primary" disabled={blocked || busy} onClick={() => void approve()}>Approve summary for AI host</button></>}</section>
+        <div className="case-layout"><section className="panel"><span className="eyebrow">Approved summary candidate</span><h2>What the host can see</h2><div className="safety-grid"><span>✓ No payload values</span><span>✓ No identifiers</span><span>✓ No free text</span><span>✓ Counts are banded</span></div><details><summary>Inspect structural evidence</summary><div className="evidence-list">{material.structuralSummary.evidenceItems.map((item) => <code key={item.ref}>{item.ref} · {item.kind} · {'code' in item ? item.code : item.feature.name}</code>)}</div></details><div className="projection-block"><h3>Complete approved case material</h3><p>This canonical projection contains every observed or structural field approved for host retrieval. Short-lived coordinator metadata is added only after approval.</p><pre data-testid="approved-case-projection">{canonicalJson(material)}</pre></div>{!evaluationCase && <><p className="boundary-copy">Approving makes this complete case material—not the payload—available to your configured AI host. That host may send it to its provider.</p><button className="primary" disabled={blocked || busy} onClick={() => void approve()}>Approve summary for AI host</button></>}</section>
           <section className="panel dark-panel"><span className="eyebrow">MCP roundtrip</span><h2>{evaluationCase ? hostRoundtripState === 'EXPIRED' ? 'Case expired' : 'Case is available' : 'Waiting for approval'}</h2>{evaluationCase && <>{hostRoundtripState !== 'EXPIRED' && <><code className="handle">{evaluationCase.caseHandle}</code><button className="quiet light" onClick={() => void copy(hostPrompt)}>Copy host instruction</button></>}<div className="waiting"><span className="pulse" />{hostRoundtripState === 'EXPIRED' ? 'The four-hour case window ended. Start a new inspection.' : hostRoundtripState === 'STALE' ? 'A stale submission was rejected. Ask the host to retrieve this case again.' : hostRoundtripState === 'RECEIVED' ? `${submissions.length} submission${submissions.length === 1 ? '' : 's'} received` : 'Waiting for Codex or Claude…'}</div></>}</section></div>
 
-        {submissions.length > 0 && selected && review && <section className="review-panel"><div className="section-heading"><div><span className="eyebrow">SME review</span><h2>Correct the host, not the payload</h2></div><select value={selectedIndex} onChange={(event) => setSelectedIndex(Number(event.target.value))}>{submissions.map((entry, index) => <option value={index} key={entry.receipt.submissionId}>{entry.hostKind} · {entry.receipt.submissionId.slice(0, 11)}</option>)}</select></div><ScalarAxis label="Standard / version" hypothesis={selected.submission.hypotheses.standardVersion} options={STANDARD_VERSIONS} review={review.standardVersion} onChange={(value) => setReview({ ...review, standardVersion: value })} /><ScalarAxis label="Workflow" hypothesis={selected.submission.hypotheses.workflow} options={WORKFLOWS} review={review.workflow} onChange={(value) => setReview({ ...review, workflow: value })} /><ScalarAxis label="Direction" hypothesis={selected.submission.hypotheses.direction} options={DIRECTIONS} review={review.direction} onChange={(value) => setReview({ ...review, direction: value })} /><ActorAxis hypothesis={selected.submission.hypotheses.actorRoles} review={review.actorRoles} onChange={(value) => setReview({ ...review, actorRoles: value })} /><ScalarAxis label="Destination class" hypothesis={selected.submission.hypotheses.destinationClass} options={DESTINATION_CLASSES} review={review.destinationClass} onChange={(value) => setReview({ ...review, destinationClass: value })} /><div className="review-actions"><button className="quiet danger" onClick={() => void purge()}>Purge without saving</button><button className="primary" onClick={() => void save()}>Save evaluation & purge case</button></div></section>}
+        {submissions.length > 0 && selected && review && <section className="review-panel"><div className="section-heading"><div><span className="eyebrow">SME review</span><h2>Correct the host, not the payload</h2></div><select value={selectedIndex} onChange={(event) => setSelectedIndex(Number(event.target.value))}>{submissions.map((entry, index) => <option value={index} key={entry.receipt.submissionId}>{entry.hostKind} · {entry.receipt.submissionId.slice(0, 11)}</option>)}</select></div><p className="review-instruction">Choose Accept, Correct, or Not scorable for every axis. Nothing is accepted by default.</p><ScalarAxis label="Standard / version" hypothesis={selected.submission.hypotheses.standardVersion} options={STANDARD_VERSIONS} review={review.standardVersion} onChange={(value) => setReview({ ...review, standardVersion: value })} /><ScalarAxis label="Workflow" hypothesis={selected.submission.hypotheses.workflow} options={WORKFLOWS} review={review.workflow} onChange={(value) => setReview({ ...review, workflow: value })} /><ScalarAxis label="Direction" hypothesis={selected.submission.hypotheses.direction} options={DIRECTIONS} review={review.direction} onChange={(value) => setReview({ ...review, direction: value })} /><ActorAxis hypothesis={selected.submission.hypotheses.actorRoles} review={review.actorRoles} onChange={(value) => setReview({ ...review, actorRoles: value })} /><ScalarAxis label="Destination class" hypothesis={selected.submission.hypotheses.destinationClass} options={DESTINATION_CLASSES} review={review.destinationClass} onChange={(value) => setReview({ ...review, destinationClass: value })} /><div className="review-actions"><button className="quiet danger" onClick={() => void purge()}>Purge without saving</button><div className="save-review"><span aria-live="polite">{currentReviewProblem ?? 'All five axes have explicit verdicts.'}</span><button className="primary" disabled={Boolean(currentReviewProblem)} onClick={() => void save()}>Save evaluation & purge case</button></div></div></section>}
       </>}
 
       {screen === 'RESULTS' && <><section className="results-hero"><div><span className="eyebrow">Sanitized local records</span><h1>{records.length} evaluation{records.length === 1 ? '' : 's'}</h1><p>{matchSummary.scored ? `${matchSummary.correct} of ${matchSummary.scored} scored axes matched the SME expectation.` : 'No scored axes yet.'}</p></div><div className="result-actions"><button className="quiet" onClick={() => setScreen('START')}>Run another case</button><button className="primary" disabled={!records.length} onClick={() => downloadJsonl(records)}>Download canonical JSONL</button></div></section><section className="records">{records.map((record) => <article key={record.recordId}><div><strong>{record.context.observation.observedFormat ?? record.context.structuralSummary.format}</strong><span>{record.hostKind}</span></div><code>{record.recordId}</code><span>{Object.values(record.review).filter((axis) => axis.exactMatch === true).length} exact · {Object.values(record.review).filter((axis) => axis.exactMatch === false).length} corrected</span></article>)}</section><button className="text-danger" disabled={!records.length} onClick={() => void clearRecords().then(refreshRecords)}>Clear sanitized records</button></>}

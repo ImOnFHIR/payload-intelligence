@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { spawn, type ChildProcess } from 'node:child_process'
+import { execFile as execFileCallback, spawn, type ChildProcess } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { promisify } from 'node:util'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -20,6 +21,7 @@ let client: Client
 let transport: StdioClientTransport
 let claudeClient: Client
 let claudeTransport: StdioClientTransport
+const execFile = promisify(execFileCallback)
 
 async function waitForReady(): Promise<void> {
   for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -132,6 +134,21 @@ describe('model-neutral MCP', () => {
       arguments: { caseHandle: evaluationCase.caseHandle, caseDigest: evaluationCase.caseDigest, confidence: 0.99 },
     }).catch((error: unknown) => error)
     expect(result).toBeTruthy()
+  })
+
+  it('self-tests both fixed host modes without claiming host readiness', async () => {
+    const result = await execFile(
+      resolve('node_modules/.bin/tsx'),
+      ['scripts/mcp-self-test.ts', 'both'],
+      {
+        cwd: resolve('.'),
+        env: { ...process.env, IMONFHIR_LAB_RENDEZVOUS: rendezvousPath },
+      },
+    )
+    expect(result.stdout).toContain('PASS CODEX-mode local stdio launch')
+    expect(result.stdout).toContain('PASS CLAUDE_DESKTOP-mode local stdio launch')
+    expect(result.stdout).toContain('LOCAL SELF-TEST ONLY')
+    expect(result.stdout).toContain('does not inspect or prove Codex or Claude Desktop configuration')
   })
 
   it('fails closed for fabricated handles, stale digests, unknown evidence, prose, and extra fields', async () => {

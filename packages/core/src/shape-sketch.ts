@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { sha256 } from '@noble/hashes/sha2.js'
+import { SaxesParser } from 'saxes'
 
 import { fingerprintPayload } from './detection.js'
 import { FHIR_R4_RESOURCE_TYPES, isFhirR4ResourceType } from './fhir-r4-resource-types.js'
@@ -345,42 +346,49 @@ function addJsonFeatures(text: string, format: PayloadFormat, collector: Feature
   return undefined
 }
 
-function stripXmlValues(text: string): string {
-  return text
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '')
-    .replace(/<\?[\s\S]*?\?>/g, '')
-}
-
 function addXmlFeatures(text: string, collector: FeatureCollector): number {
-  const tags = stripXmlValues(text).matchAll(/<\s*(\/?)\s*([A-Za-z_][\w.-]*(?::[A-Za-z_][\w.-]*)?)(?:\s[^<>]*?)?\s*(\/?)>/g)
   const stack: string[] = []
+  const includedFrames: boolean[] = []
   let elements = 0
-  for (const match of tags) {
-    const closing = match[1] === '/'
-    const selfClosing = match[3] === '/'
-    const safeName = xmlName(match[2])
-    if (closing) {
-      stack.pop()
-      continue
-    }
-    elements += 1
-    if (elements > MAX_XML_ELEMENTS_TO_SCAN) {
+  const parser = new SaxesParser({ xmlns: true })
+
+  parser.on('opentag', (tag) => {
+    const withinElementLimit = elements < MAX_XML_ELEMENTS_TO_SCAN
+    const withinDepthLimit = includedFrames.length < MAX_SKETCH_DEPTH
+    if (withinElementLimit) elements += 1
+    else collector.truncated = true
+    if (!withinDepthLimit) collector.truncated = true
+
+    const include = withinElementLimit && withinDepthLimit
+    includedFrames.push(include)
+    if (!include) {
       collector.truncated = true
-      break
+      return
     }
-    const path = `/${[...stack, safeName].join('/')}`
+
+    const safeName = xmlName(tag.local)
+    stack.push(safeName)
+    const path = `/${stack.join('/')}`
     collector.add({ kind: 'STRUCTURAL_NAME', name: safeName, path, dataType: 'element' })
-    const localName = match[2].includes(':') ? match[2].slice(match[2].lastIndexOf(':') + 1) : match[2]
-    if (isFhirR4ResourceType(localName)) {
-      collector.add({ kind: 'SAFE_MARKER', name: `FHIR_RESOURCE_${localName.toUpperCase()}`, path })
+    if (isFhirR4ResourceType(tag.local)) {
+      collector.add({ kind: 'SAFE_MARKER', name: `FHIR_RESOURCE_${tag.local.toUpperCase()}`, path })
     }
-    if (!selfClosing) stack.push(safeName)
-    if (stack.length > MAX_SKETCH_DEPTH) {
-      collector.truncated = true
-      stack.length = MAX_SKETCH_DEPTH
-    }
+  })
+  parser.on('closetag', () => {
+    if (includedFrames.pop()) stack.pop()
+  })
+  parser.on('error', () => {
+    collector.truncated = true
+  })
+
+  try {
+    parser.write(text).close()
+  } catch {
+    // Fingerprinting rejects malformed XML before model exposure. Keep this
+    // second parsing pass fail-closed if a caller reaches it independently.
+    collector.truncated = true
   }
+
   return elements
 }
 

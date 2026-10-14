@@ -182,6 +182,10 @@ function scalarReview<T extends readonly [string, ...string[]]>(values: T) {
   return z.object({ verdict: axisVerdict, expected: z.enum(values).nullable(), exactMatch: z.boolean().nullable() }).strict()
 }
 
+function sameValues(left: string[], right: string[]): boolean {
+  return [...left].sort().join('|') === [...right].sort().join('|')
+}
+
 export const smeEvaluationRecordSchema = z.object({
   schemaVersion: z.literal('imonfhir.sme-evaluation-record.v1'),
   recordId: z.string().regex(/^sr_[a-f0-9]{32}$/),
@@ -203,7 +207,41 @@ export const smeEvaluationRecordSchema = z.object({
     }).strict(),
     destinationClass: scalarReview(DESTINATION_CLASSES),
   }).strict(),
-}).strict()
+}).strict().superRefine((record, context) => {
+  const scalarAxes = ['standardVersion', 'workflow', 'direction', 'destinationClass'] as const
+  for (const axis of scalarAxes) {
+    const review = record.review[axis]
+    const submitted = record.hypotheses[axis].value
+    const valid = review.verdict === 'ACCEPTED'
+      ? review.expected === submitted && review.exactMatch === true
+      : review.verdict === 'CORRECTED'
+        ? review.expected !== null && review.expected !== submitted && review.exactMatch === false
+        : review.expected === null && review.exactMatch === null
+    if (!valid) {
+      context.addIssue({
+        code: 'custom',
+        path: ['review', axis],
+        message: 'Review verdict, expected value, and exact-match result are inconsistent.',
+      })
+    }
+  }
+
+  const actorReview = record.review.actorRoles
+  const submittedActors = record.hypotheses.actorRoles.values
+  const actorsMatch = actorReview.expected !== null && sameValues(actorReview.expected, submittedActors)
+  const validActors = actorReview.verdict === 'ACCEPTED'
+    ? actorsMatch && actorReview.exactMatch === true
+    : actorReview.verdict === 'CORRECTED'
+      ? actorReview.expected !== null && !actorsMatch && actorReview.exactMatch === false
+      : actorReview.expected === null && actorReview.exactMatch === null
+  if (!validActors) {
+    context.addIssue({
+      code: 'custom',
+      path: ['review', 'actorRoles'],
+      message: 'Review verdict, expected roles, and exact-match result are inconsistent.',
+    })
+  }
+})
 
 export function parseHostHypothesisSubmission(input: unknown): HostHypothesisSubmission {
   return hostHypothesisSubmissionSchema.parse(input) as HostHypothesisSubmission

@@ -7,6 +7,7 @@ import { projectInspection } from '../src/projection.js'
 import {
   hostHypothesisSubmissionSchema,
   parseApprovedCaseMaterial,
+  smeEvaluationRecordSchema,
   validateSubmissionAgainstCase,
 } from '../src/validation.js'
 import type { HostEvaluationCase, HostHypothesisSubmission } from '../src/types.js'
@@ -63,5 +64,57 @@ describe('closed host submissions', () => {
       },
     } as HostEvaluationCase
     expect(() => validateSubmissionAgainstCase(base, evaluationCase)).toThrow('INVALID_EVIDENCE_REFERENCE')
+  })
+
+  async function reviewedRecord() {
+    const inspection = await inspectPayload(new TextEncoder().encode(JSON.stringify({ resourceType: 'Patient' })))
+    return {
+      schemaVersion: 'imonfhir.sme-evaluation-record.v1',
+      recordId: `sr_${'c'.repeat(32)}`,
+      taxonomyVersion: 'imonfhir.evaluation-taxonomy.v1',
+      contextDigest: 'd'.repeat(64),
+      context: projectInspection(inspection),
+      hostKind: 'CODEX',
+      hypotheses: base.hypotheses,
+      missingContextQuestionCodes: base.missingContextQuestionCodes,
+      proposedNextActionCodes: base.proposedNextActionCodes,
+      review: {
+        standardVersion: { verdict: 'ACCEPTED', expected: 'UNDETERMINED', exactMatch: true },
+        workflow: { verdict: 'ACCEPTED', expected: 'UNKNOWN_OR_OTHER', exactMatch: true },
+        direction: { verdict: 'ACCEPTED', expected: 'UNKNOWN', exactMatch: true },
+        actorRoles: { verdict: 'ACCEPTED', expected: ['UNKNOWN'], exactMatch: true },
+        destinationClass: { verdict: 'ACCEPTED', expected: 'UNKNOWN', exactMatch: true },
+      },
+    }
+  }
+
+  it('keeps UNREVIEWED out of the public evaluation-record contract', async () => {
+    const record = await reviewedRecord()
+    expect(() => smeEvaluationRecordSchema.parse({
+      ...record,
+      review: {
+        ...record.review,
+        workflow: { verdict: 'UNREVIEWED', expected: 'UNKNOWN_OR_OTHER', exactMatch: null },
+      },
+    })).toThrow()
+  })
+
+  it('requires a corrected value to differ from the host hypothesis', async () => {
+    const record = await reviewedRecord()
+    expect(() => smeEvaluationRecordSchema.parse({
+      ...record,
+      review: {
+        ...record.review,
+        workflow: { verdict: 'CORRECTED', expected: 'UNKNOWN_OR_OTHER', exactMatch: false },
+      },
+    })).toThrow('Review verdict, expected value, and exact-match result are inconsistent.')
+
+    expect(smeEvaluationRecordSchema.parse({
+      ...record,
+      review: {
+        ...record.review,
+        workflow: { verdict: 'CORRECTED', expected: 'RESOURCE_EXCHANGE', exactMatch: false },
+      },
+    }).review.workflow).toEqual({ verdict: 'CORRECTED', expected: 'RESOURCE_EXCHANGE', exactMatch: false })
   })
 })
