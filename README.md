@@ -19,6 +19,8 @@ synthetic payload
 
 The useful artifact is the correction loop. This repository does not include a bundled model, validator, calibration layer, clinical logic, payer policy, or production security claim.
 
+For the reasoning behind the design, the evidence for each claim, and what is not yet proven, read the [project write-up](docs/WRITEUP.md).
+
 ## Five-minute start
 
 Requirements: macOS, Git, and Node.js 22.22.3. The repository includes `.nvmrc` and `.node-version` for common version managers.
