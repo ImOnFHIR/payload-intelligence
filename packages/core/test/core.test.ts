@@ -3,11 +3,34 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { inspectPayload } from '../src/index.js'
+import {
+  BUSINESS_WORKFLOWS,
+  DIRECTIONS_V1,
+  EVALUATION_TAXONOMY,
+  EVALUATION_TAXONOMY_V1,
+  EXCHANGE_PATTERNS,
+  inspectPayload,
+  INTERACTION_KINDS,
+} from '../src/index.js'
 import { createShapeSketch } from '../src/shape-sketch.js'
 import { fingerprintPayload, MAX_PAYLOAD_BYTES } from '../src/detection.js'
 
 const examples = resolve(import.meta.dirname, '../../../examples/synthetic')
+
+describe('versioned evaluation taxonomy', () => {
+  it('separates business workflow, exchange pattern, and interaction kind in v2', () => {
+    expect(EVALUATION_TAXONOMY.version).toBe('imonfhir.evaluation-taxonomy.v2')
+    expect(BUSINESS_WORKFLOWS).toContain('CARE_COORDINATION')
+    expect(EXCHANGE_PATTERNS).toContain('RESOURCE_STREAM')
+    expect(INTERACTION_KINDS).toEqual(['REQUEST', 'RESPONSE', 'EVENT', 'UNKNOWN', 'NOT_APPLICABLE'])
+  })
+
+  it('retains the ambiguous v1 vocabulary only as an explicit legacy taxonomy', () => {
+    expect(EVALUATION_TAXONOMY_V1.version).toBe('imonfhir.evaluation-taxonomy.v1')
+    expect(DIRECTIONS_V1).toContain('SENDER_TO_RECEIVER')
+    expect(EVALUATION_TAXONOMY).not.toHaveProperty('directions')
+  })
+})
 
 async function fixture(name: string): Promise<Uint8Array> {
   return new Uint8Array(await readFile(resolve(examples, name)))

@@ -10,6 +10,8 @@ This repository is an experimental developer preview for synthetic data. Do not 
 - A user must review and approve a value-minimized structural summary before a configured AI host can retrieve it.
 - The AI host may send that approved summary to its provider. This project does not control the provider's retention or account policy.
 - The loopback coordinator stores active cases only in memory. Same-user malware, browser compromise, memory inspection, screenshots, clipboard capture, and a compromised host are explicit limitations.
+- Codex-mode and Claude-mode activity indicators report launcher-mode traffic. They are not authenticated host identity and do not prove provider connectivity.
+- `?recording=1` hides transient identifiers and paths for capture, but it is a display aid rather than a security control. Final media still requires frame-by-frame review.
 - JavaScript and browser garbage collectors may retain copies despite best-effort buffer overwrite.
 
 ## Reports

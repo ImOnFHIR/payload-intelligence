@@ -1,0 +1,509 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://imonfhir.com/schemas/imonfhir.host-evaluation-case.v2.schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0",
+  "type": "object",
+  "properties": {
+    "observation": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "DETECTED",
+            "AMBIGUOUS",
+            "OPAQUE",
+            "UNKNOWN",
+            "REJECTED"
+          ]
+        },
+        "observedFormat": {
+          "type": "string",
+          "enum": [
+            "FHIR_JSON",
+            "FHIR_XML",
+            "FHIR_NDJSON",
+            "HL7_V2_ER7",
+            "CDA_XML",
+            "RESTRICTED_EDI_UNSUPPORTED",
+            "GENERIC_JSON",
+            "GENERIC_XML",
+            "DELIMITED_TEXT",
+            "PDF",
+            "DICOM",
+            "ARCHIVE",
+            "UNKNOWN_TEXT",
+            "UNKNOWN_BINARY"
+          ]
+        },
+        "candidates": {
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "format": {
+                "type": "string",
+                "enum": [
+                  "FHIR_JSON",
+                  "FHIR_XML",
+                  "FHIR_NDJSON",
+                  "HL7_V2_ER7",
+                  "CDA_XML",
+                  "RESTRICTED_EDI_UNSUPPORTED",
+                  "GENERIC_JSON",
+                  "GENERIC_XML",
+                  "DELIMITED_TEXT",
+                  "PDF",
+                  "DICOM",
+                  "ARCHIVE",
+                  "UNKNOWN_TEXT",
+                  "UNKNOWN_BINARY"
+                ]
+              },
+              "signature": {
+                "type": "string",
+                "enum": [
+                  "DETERMINISTIC",
+                  "HEURISTIC",
+                  "OPAQUE_MAGIC"
+                ]
+              },
+              "evidenceCodes": {
+                "maxItems": 32,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Z0-9_]{2,80}$"
+                }
+              }
+            },
+            "required": [
+              "format",
+              "signature",
+              "evidenceCodes"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "conflictCodes": {
+          "maxItems": 16,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]{2,80}$"
+          }
+        },
+        "issueCodes": {
+          "maxItems": 16,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]{2,80}$"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "candidates",
+        "conflictCodes",
+        "issueCodes"
+      ],
+      "additionalProperties": false
+    },
+    "structuralSummary": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "imonfhir.approved-structural-summary.v1"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "FHIR_JSON",
+            "FHIR_XML",
+            "FHIR_NDJSON",
+            "HL7_V2_ER7",
+            "CDA_XML",
+            "RESTRICTED_EDI_UNSUPPORTED",
+            "GENERIC_JSON",
+            "GENERIC_XML",
+            "DELIMITED_TEXT",
+            "PDF",
+            "DICOM",
+            "ARCHIVE",
+            "UNKNOWN_TEXT",
+            "UNKNOWN_BINARY"
+          ]
+        },
+        "evidenceItems": {
+          "minItems": 2,
+          "maxItems": 300,
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "type": "string",
+                    "pattern": "^ev_[a-f0-9]{16}$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "FORMAT"
+                  },
+                  "code": {
+                    "type": "string",
+                    "enum": [
+                      "FHIR_JSON",
+                      "FHIR_XML",
+                      "FHIR_NDJSON",
+                      "HL7_V2_ER7",
+                      "CDA_XML",
+                      "RESTRICTED_EDI_UNSUPPORTED",
+                      "GENERIC_JSON",
+                      "GENERIC_XML",
+                      "DELIMITED_TEXT",
+                      "PDF",
+                      "DICOM",
+                      "ARCHIVE",
+                      "UNKNOWN_TEXT",
+                      "UNKNOWN_BINARY"
+                    ]
+                  }
+                },
+                "required": [
+                  "ref",
+                  "kind",
+                  "code"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "type": "string",
+                    "pattern": "^ev_[a-f0-9]{16}$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "DETECTOR"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^[A-Z0-9_]{2,80}$"
+                  }
+                },
+                "required": [
+                  "ref",
+                  "kind",
+                  "code"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "type": "string",
+                    "pattern": "^ev_[a-f0-9]{16}$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "SHAPE"
+                  },
+                  "code": {
+                    "type": "string",
+                    "enum": [
+                      "COMPLETE",
+                      "TRUNCATED"
+                    ]
+                  }
+                },
+                "required": [
+                  "ref",
+                  "kind",
+                  "code"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "type": "string",
+                    "pattern": "^ev_[a-f0-9]{16}$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "AGGREGATE"
+                  },
+                  "code": {
+                    "type": "string",
+                    "enum": [
+                      "LINES",
+                      "RECORDS",
+                      "SEGMENTS",
+                      "ELEMENTS"
+                    ]
+                  },
+                  "countBand": {
+                    "type": "string",
+                    "enum": [
+                      "ZERO",
+                      "ONE",
+                      "TWO_TO_FIVE",
+                      "SIX_TO_TWENTY",
+                      "TWENTY_ONE_TO_ONE_HUNDRED",
+                      "OVER_ONE_HUNDRED"
+                    ]
+                  }
+                },
+                "required": [
+                  "ref",
+                  "kind",
+                  "code",
+                  "countBand"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "type": "string",
+                    "pattern": "^ev_[a-f0-9]{16}$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "FEATURE"
+                  },
+                  "feature": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "STRUCTURAL_NAME",
+                          "DATA_TYPE",
+                          "COUNT",
+                          "SAFE_MARKER"
+                        ]
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "structuralPath": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_$./\\[\\]-]{1,512}$"
+                      },
+                      "dataType": {
+                        "type": "string",
+                        "enum": [
+                          "object",
+                          "array",
+                          "string",
+                          "number",
+                          "boolean",
+                          "null",
+                          "element",
+                          "segment"
+                        ]
+                      },
+                      "countBand": {
+                        "type": "string",
+                        "enum": [
+                          "ZERO",
+                          "ONE",
+                          "TWO_TO_FIVE",
+                          "SIX_TO_TWENTY",
+                          "TWENTY_ONE_TO_ONE_HUNDRED",
+                          "OVER_ONE_HUNDRED"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "ref",
+                  "kind",
+                  "feature"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "safety": {
+          "type": "object",
+          "properties": {
+            "payloadValuesAbsent": {
+              "type": "boolean",
+              "const": true
+            },
+            "identifiersAbsent": {
+              "type": "boolean",
+              "const": true
+            },
+            "freeTextAbsent": {
+              "type": "boolean",
+              "const": true
+            },
+            "binaryContentAbsent": {
+              "type": "boolean",
+              "const": true
+            },
+            "unknownNamesHashed": {
+              "type": "boolean",
+              "const": true
+            },
+            "exactCountsAbsent": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "payloadValuesAbsent",
+            "identifiersAbsent",
+            "freeTextAbsent",
+            "binaryContentAbsent",
+            "unknownNamesHashed",
+            "exactCountsAbsent"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "format",
+        "evidenceItems",
+        "safety"
+      ],
+      "additionalProperties": false
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "imonfhir.host-evaluation-case.v2"
+    },
+    "caseHandle": {
+      "type": "string",
+      "pattern": "^ec_[a-f0-9]{32}$"
+    },
+    "caseDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+    },
+    "taxonomyVersion": {
+      "type": "string",
+      "const": "imonfhir.evaluation-taxonomy.v2"
+    },
+    "contractDigests": {
+      "type": "object",
+      "properties": {
+        "taxonomy": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "evaluatorCapabilities": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hostEvaluationCase": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hostHypothesisSubmission": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hostHypothesisReceipt": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "smeEvaluationRecord": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "taxonomy",
+        "evaluatorCapabilities",
+        "hostEvaluationCase",
+        "hostHypothesisSubmission",
+        "hostHypothesisReceipt",
+        "smeEvaluationRecord"
+      ],
+      "additionalProperties": false
+    },
+    "requiredSubmission": {
+      "type": "object",
+      "properties": {
+        "axes": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "string",
+              "const": "standardVersion"
+            },
+            {
+              "type": "string",
+              "const": "businessWorkflow"
+            },
+            {
+              "type": "string",
+              "const": "exchangePattern"
+            },
+            {
+              "type": "string",
+              "const": "interactionKind"
+            },
+            {
+              "type": "string",
+              "const": "sourceActorRoles"
+            },
+            {
+              "type": "string",
+              "const": "destinationActorRoles"
+            },
+            {
+              "type": "string",
+              "const": "destinationClass"
+            }
+          ],
+          "items": false,
+          "minItems": 7,
+          "maxItems": 7
+        }
+      },
+      "required": [
+        "axes"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "observation",
+    "structuralSummary",
+    "schemaVersion",
+    "caseHandle",
+    "caseDigest",
+    "expiresAt",
+    "taxonomyVersion",
+    "contractDigests",
+    "requiredSubmission"
+  ],
+  "additionalProperties": false
+}

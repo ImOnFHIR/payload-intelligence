@@ -1,11 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import type { HostEvaluationCase, HostHypothesisReceipt, HostHypothesisSubmission, HostKind } from '@imonfhir/payload-contracts'
+import {
+  assertCurrentContractDigests,
+  hostHypothesisReceiptSchema,
+  parseHostEvaluationCase,
+  type HostEvaluationCase,
+  type HostHypothesisReceipt,
+  type HostHypothesisSubmission,
+  type HostKind,
+} from '@imonfhir/payload-contracts'
 import { readRendezvous, type Rendezvous } from './rendezvous.js'
+
+export type HostActivityState = 'CAPABILITIES_CALLED' | 'CASE_RETRIEVED' | 'SUBMITTED'
 
 export class CoordinatorClient {
   constructor(
     private readonly hostKind: HostKind,
+    private readonly probe = false,
     private readonly resolveRendezvous: () => Promise<Rendezvous> = () => readRendezvous(),
   ) {}
 
@@ -25,14 +36,28 @@ export class CoordinatorClient {
     return body
   }
 
+  async noteActivity(state: HostActivityState): Promise<void> {
+    await this.request(
+      `/internal/host-activity?host=${this.hostKind}&state=${state}&probe=${this.probe ? '1' : '0'}`,
+      { method: 'POST', body: '' },
+    )
+  }
+
   async getCase(caseHandle: string): Promise<HostEvaluationCase> {
-    return await this.request(`/internal/cases/${encodeURIComponent(caseHandle)}`) as HostEvaluationCase
+    const evaluationCase = parseHostEvaluationCase(
+      await this.request(`/internal/cases/${encodeURIComponent(caseHandle)}`),
+    )
+    await this.noteActivity('CASE_RETRIEVED').catch(() => undefined)
+    return evaluationCase
   }
 
   async submit(submission: HostHypothesisSubmission): Promise<HostHypothesisReceipt> {
-    return await this.request(
+    const receipt = hostHypothesisReceiptSchema.parse(await this.request(
       `/internal/cases/${encodeURIComponent(submission.caseHandle)}/submissions?host=${this.hostKind}`,
       { method: 'POST', body: JSON.stringify(submission) },
-    ) as HostHypothesisReceipt
+    )) as HostHypothesisReceipt
+    assertCurrentContractDigests(receipt.contractDigests)
+    await this.noteActivity('SUBMITTED').catch(() => undefined)
+    return receipt
   }
 }

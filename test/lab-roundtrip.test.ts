@@ -6,7 +6,12 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { inspectPayload } from '../packages/core/src/index.js'
-import { projectInspection, type HostEvaluationCase, type HostHypothesisSubmission } from '../packages/contracts/src/index.js'
+import {
+  CONTRACT_DIGESTS_V2,
+  projectInspection,
+  type HostEvaluationCase,
+  type HostHypothesisSubmission,
+} from '../packages/contracts/src/index.js'
 import { CoordinatorClient } from '../packages/mcp/src/client.js'
 import { readRendezvous } from '../packages/mcp/src/rendezvous.js'
 
@@ -85,16 +90,26 @@ describe('local UI/MCP coordinator roundtrip', () => {
 
     const evidenceRef = evaluationCase.structuralSummary.evidenceItems[0]!.ref
     const submission: HostHypothesisSubmission = {
+      schemaVersion: 'imonfhir.host-hypothesis-submission.v2',
+      taxonomyVersion: 'imonfhir.evaluation-taxonomy.v2',
+      contractDigests: CONTRACT_DIGESTS_V2,
       caseHandle: evaluationCase.caseHandle,
       caseDigest: evaluationCase.caseDigest,
       hypotheses: {
         standardVersion: { value: 'UNDETERMINED', evidenceRefs: [evidenceRef], conflictCodes: ['STANDARD_VERSION_NOT_OBSERVED'] },
-        workflow: { value: 'UNKNOWN_OR_OTHER', evidenceRefs: [evidenceRef], conflictCodes: ['INSUFFICIENT_STRUCTURAL_EVIDENCE'] },
-        direction: { value: 'UNKNOWN', evidenceRefs: [evidenceRef], conflictCodes: ['DIRECTION_NOT_OBSERVED'] },
-        actorRoles: { values: ['UNKNOWN'], evidenceRefs: [evidenceRef], conflictCodes: ['ACTOR_ROLES_NOT_OBSERVED'] },
-        destinationClass: { value: 'UNKNOWN', evidenceRefs: [evidenceRef], conflictCodes: ['DESTINATION_NOT_OBSERVED'] },
+        businessWorkflow: { value: 'UNKNOWN_OR_OTHER', evidenceRefs: [evidenceRef], conflictCodes: ['BUSINESS_WORKFLOW_NOT_OBSERVED'] },
+        exchangePattern: { value: 'UNKNOWN', evidenceRefs: [evidenceRef], conflictCodes: ['EXCHANGE_PATTERN_NOT_OBSERVED'] },
+        interactionKind: { value: 'UNKNOWN', evidenceRefs: [evidenceRef], conflictCodes: ['INTERACTION_KIND_NOT_OBSERVED'] },
+        sourceActorRoles: { values: ['UNKNOWN'], evidenceRefs: [evidenceRef], conflictCodes: ['SOURCE_ACTOR_ROLES_NOT_OBSERVED'] },
+        destinationActorRoles: { values: ['UNKNOWN'], evidenceRefs: [evidenceRef], conflictCodes: ['DESTINATION_ACTOR_ROLES_NOT_OBSERVED'] },
+        destinationClass: { value: 'UNKNOWN', evidenceRefs: [evidenceRef], conflictCodes: ['DESTINATION_CLASS_NOT_OBSERVED'] },
       },
-      missingContextQuestionCodes: ['CONFIRM_STANDARD_VERSION', 'CONFIRM_WORKFLOW', 'CONFIRM_DIRECTION', 'CONFIRM_ACTOR_ROLES', 'CONFIRM_DESTINATION_CLASS'],
+      missingContextQuestionCodes: [
+        'CONFIRM_BUSINESS_WORKFLOW', 'CONFIRM_DESTINATION_ACTOR_ROLES',
+        'CONFIRM_DESTINATION_CLASS', 'CONFIRM_EXCHANGE_PATTERN',
+        'CONFIRM_INTERACTION_KIND', 'CONFIRM_SOURCE_ACTOR_ROLES',
+        'CONFIRM_STANDARD_VERSION',
+      ],
       proposedNextActionCodes: ['ASK_TARGETED_CONTEXT'],
     }
     const submit = () => fetch(`${baseUrl}/internal/cases/${evaluationCase.caseHandle}/submissions?host=CODEX`, {
@@ -160,7 +175,7 @@ describe('a second lab launch on a busy port', () => {
     })
     expect(created.status).toBe(201)
     const { caseHandle } = await created.json() as HostEvaluationCase
-    const client = new CoordinatorClient('CODEX', () => readRendezvous(rendezvousPath))
+    const client = new CoordinatorClient('CODEX', false, () => readRendezvous(rendezvousPath))
     expect((await client.getCase(caseHandle)).caseHandle).toBe(caseHandle)
   }, 30_000)
 })

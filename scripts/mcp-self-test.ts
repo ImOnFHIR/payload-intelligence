@@ -29,7 +29,7 @@ async function testMode(host: McpHostMode): Promise<void> {
   const environment = Object.fromEntries(
     Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
   )
-  const config = localMcpServerConfig(host)
+  const config = localMcpServerConfig(host, process.execPath, { probe: true })
   const transport = new StdioClientTransport({
     command: config.command,
     args: config.args,
@@ -45,7 +45,7 @@ async function testMode(host: McpHostMode): Promise<void> {
     if (names.join('|') !== expectedTools.join('|')) throw new Error('MCP_CONTRACT_MISMATCH')
     const capabilities = await client.callTool({ name: 'payload_capabilities', arguments: {} })
     if (capabilities.isError || !capabilities.structuredContent) throw new Error('MCP_HANDSHAKE_FAILED')
-    process.stdout.write(`PASS ${host}-mode local stdio launch, handshake, and three-tool contract\n`)
+    process.stdout.write(`PASS ${host}-mode local stdio launch, handshake, and three-tool contract (probe; activity excluded)\n`)
   } finally {
     await transport.close().catch(() => undefined)
   }
@@ -60,7 +60,7 @@ try {
 
   process.stdout.write('PASS local lab readiness endpoint\nPASS rendezvous file private-mode check\n')
   for (const host of modes) await testMode(host)
-  process.stdout.write('LOCAL SELF-TEST ONLY: this does not inspect or prove Codex or Claude Desktop configuration, host policy, provider connectivity, or host readiness.\n')
+  process.stdout.write('LOCAL SELF-TEST ONLY: probe calls do not advance host-activity state. This does not inspect or prove Codex or Claude Desktop configuration, host policy, provider connectivity, or host readiness.\n')
 } catch {
   process.stderr.write('FAIL local MCP self-test. Start the lab with `npm run lab`, confirm this checkout is built, and retry.\n')
   process.stderr.write('This result does not diagnose Codex or Claude Desktop configuration.\n')

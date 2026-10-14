@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  CONTRACT_DIGESTS_V2,
   canonicalJson,
   hostHypothesisSubmissionSchema,
   parseHostHypothesisSubmission,
@@ -23,7 +24,7 @@ import { z } from 'zod'
 import { CoordinatorClient } from './client.js'
 
 const capabilities: EvaluatorCapabilities = {
-  schemaVersion: 'imonfhir.evaluator-capabilities.v1',
+  schemaVersion: 'imonfhir.evaluator-capabilities.v2',
   mode: 'HOST_ASSISTED_SME_EVALUATION',
   bundledModel: false,
   supportedHosts: ['CODEX', 'CLAUDE_DESKTOP'],
@@ -34,6 +35,7 @@ const capabilities: EvaluatorCapabilities = {
   rawPayloadAccepted: false,
   syntheticOnly: true,
   taxonomyVersion: TAXONOMY_VERSION,
+  contractDigests: CONTRACT_DIGESTS_V2,
   recognizedFormats: [...PAYLOAD_FORMATS],
   hostEligibleFormats: [
     'FHIR_JSON', 'FHIR_XML', 'FHIR_NDJSON', 'HL7_V2_ER7', 'CDA_XML',
@@ -74,10 +76,13 @@ function result(value: unknown) {
 }
 
 function failure(error: unknown) {
-  const code = error instanceof Error ? error.message : 'STORE_UNAVAILABLE'
+  const code = error instanceof z.ZodError
+    ? 'INVALID_HYPOTHESES'
+    : error instanceof Error ? error.message : 'STORE_UNAVAILABLE'
   const allowed = new Set([
     'EXPIRED_CASE', 'EVALUATION_BLOCKED', 'STALE_CASE', 'INVALID_HYPOTHESES',
     'INVALID_EVIDENCE_REFERENCE', 'SUBMISSION_LIMIT_REACHED', 'STORE_UNAVAILABLE',
+    'CONTRACT_VERSION_MISMATCH',
   ])
   return {
     isError: true,
@@ -85,10 +90,10 @@ function failure(error: unknown) {
   }
 }
 
-export async function runMcpServer(hostKind: HostKind): Promise<void> {
-  const client = new CoordinatorClient(hostKind)
+export async function runMcpServer(hostKind: HostKind, options: { probe?: boolean } = {}): Promise<void> {
+  const client = new CoordinatorClient(hostKind, options.probe ?? false)
   const server = new Server(
-    { name: 'imonfhir-payload-mcp', version: '0.1.0-preview.0' },
+    { name: 'imonfhir-payload-mcp', version: '0.1.0-preview' },
     { capabilities: { tools: {} } },
   )
 
@@ -112,7 +117,14 @@ export async function runMcpServer(hostKind: HostKind): Promise<void> {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
-      if (request.params.name === 'payload_capabilities') return result(capabilities)
+      if (request.params.name === 'payload_capabilities') {
+        const args = request.params.arguments
+        if (args !== undefined && (typeof args !== 'object' || args === null || Array.isArray(args) || Object.keys(args).length !== 0)) {
+          throw new Error('INVALID_HYPOTHESES')
+        }
+        await client.noteActivity('CAPABILITIES_CALLED').catch(() => undefined)
+        return result(capabilities)
+      }
       if (request.params.name === 'payload_get_evaluation_case') {
         const args = request.params.arguments as Record<string, unknown> | undefined
         if (!args || Object.keys(args).length !== 1 || typeof args.caseHandle !== 'string' || !/^ec_[a-f0-9]{32}$/.test(args.caseHandle)) {

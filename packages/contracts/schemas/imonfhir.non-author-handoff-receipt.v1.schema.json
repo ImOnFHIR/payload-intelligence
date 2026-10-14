@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://imonfhir.com/schemas/imonfhir.non-author-handoff-receipt.v1.schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "imonfhir.non-author-handoff-receipt.v1"
+    },
+    "label": {
+      "type": "string",
+      "const": "NON_AUTHOR_USABILITY_SMOKE_TEST · NOT INDEPENDENT REVIEW"
+    },
+    "testedCommit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "platformClass": {
+      "type": "string",
+      "enum": [
+        "MACOS_ARM64",
+        "MACOS_X64"
+      ]
+    },
+    "elapsedSetupMinutes": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 60
+    },
+    "checklist": {
+      "type": "object",
+      "properties": {
+        "freshClonePathWithSpaces": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "uiReachableUnderTenMinutes": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "codexConfiguredWithoutOwnerCoaching": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "claudeConfiguredWithoutOwnerCoaching": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "sameCaseRetrievedByBothHosts": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "bothHostSubmissionsPreserved": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "bothHostEvaluationsSaved": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "customSyntheticCaseCompleted": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "correctedAtLeastOneResult": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "markedAtLeastOneResultNotScorable": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "questionAndActionSetsReviewed": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "deterministicV2JsonlExported": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "casePurged": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "nonClaimsExplainedWithoutAssistance": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        }
+      },
+      "required": [
+        "freshClonePathWithSpaces",
+        "uiReachableUnderTenMinutes",
+        "codexConfiguredWithoutOwnerCoaching",
+        "claudeConfiguredWithoutOwnerCoaching",
+        "sameCaseRetrievedByBothHosts",
+        "bothHostSubmissionsPreserved",
+        "bothHostEvaluationsSaved",
+        "customSyntheticCaseCompleted",
+        "correctedAtLeastOneResult",
+        "markedAtLeastOneResultNotScorable",
+        "questionAndActionSetsReviewed",
+        "deterministicV2JsonlExported",
+        "casePurged",
+        "nonClaimsExplainedWithoutAssistance"
+      ],
+      "additionalProperties": false
+    },
+    "blockerCodes": {
+      "minItems": 1,
+      "maxItems": 17,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "SETUP_EXCEEDED_TEN_MINUTES",
+          "CODEX_CONFIGURATION_FAILED",
+          "CLAUDE_CONFIGURATION_FAILED",
+          "CODEX_CASE_RETRIEVAL_FAILED",
+          "CLAUDE_CASE_RETRIEVAL_FAILED",
+          "CODEX_SUBMISSION_FAILED",
+          "CLAUDE_SUBMISSION_FAILED",
+          "DUAL_HOST_REVIEW_NOT_PRESERVED",
+          "CUSTOM_SYNTHETIC_CASE_FAILED",
+          "SME_REVIEW_FAILED",
+          "EXPORT_FAILED",
+          "PURGE_FAILED",
+          "NON_CLAIM_COMPREHENSION_FAILED",
+          "COACHING_REQUIRED",
+          "ARTIFACT_MISMATCH",
+          "RESTRICTED_MATERIAL_DETECTED"
+        ]
+      }
+    },
+    "artifactDigests": {
+      "type": "object",
+      "properties": {
+        "candidateSourceTreeSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "evaluationExportSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "recordingMp4Sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "recordingDescriptorSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "candidateSourceTreeSha256",
+        "evaluationExportSha256",
+        "recordingMp4Sha256",
+        "recordingDescriptorSha256"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "label",
+    "testedCommit",
+    "platformClass",
+    "elapsedSetupMinutes",
+    "checklist",
+    "blockerCodes",
+    "artifactDigests"
+  ],
+  "additionalProperties": false
+}

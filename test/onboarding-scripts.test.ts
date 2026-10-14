@@ -20,6 +20,14 @@ afterEach(async () => {
 })
 
 describe('MCP onboarding scripts', () => {
+  it('keeps bootstrap pinned to Node 22.22.3 and a required lockfile', async () => {
+    const source = await readFile(resolve('scripts/bootstrap.mjs'), 'utf8')
+    expect(source).toContain("process.versions.node !== '22.22.3'")
+    expect(source).toContain('LOCKFILE_REQUIRED')
+    expect(source).toContain("run('npm', ['ci'])")
+    expect(source).not.toContain("'install'")
+  })
+
   it('validates the generated Claude server entry without changing the file', async () => {
     const configPath = join(temporaryDirectory, 'claude_desktop_config.json')
     const source = `${JSON.stringify(claudeDesktopConfig(), null, 2)}\n`
@@ -60,7 +68,9 @@ describe('MCP onboarding scripts', () => {
     )
 
     expect(result.stdout).toContain('"--host=CLAUDE_DESKTOP"')
-    expect(result.stdout).toContain('Neither check proves Claude Desktop loaded the server')
+    expect(result.stdout).toContain('npm run mcp:doctor -- claude')
+    expect(result.stdout).toContain('None of these checks alone proves Claude Desktop loaded the server')
+    expect(result.stdout).toContain('not authenticated host identity')
     expect(await readdir(home)).toEqual([])
   })
 })

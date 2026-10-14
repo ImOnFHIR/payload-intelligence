@@ -8,7 +8,11 @@ import { randomBytes } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import {
+  CONTRACT_DIGESTS_V2,
   canonicalDigest,
+  deriveHypothesisDigest,
+  deriveSubmissionDigest,
+  deriveSubmissionId,
   parseApprovedCaseMaterial,
   parseHostHypothesisSubmission,
   validateSubmissionAgainstCase,
@@ -42,6 +46,19 @@ interface StoredCase {
 
 const cases = new Map<string, StoredCase>()
 const token = randomBytes(32).toString('hex')
+type HostActivityState = 'NOT_SEEN' | 'CAPABILITIES_CALLED' | 'CASE_RETRIEVED' | 'SUBMITTED'
+const activityOrder: readonly HostActivityState[] = [
+  'NOT_SEEN', 'CAPABILITIES_CALLED', 'CASE_RETRIEVED', 'SUBMITTED',
+]
+const hostActivity: Record<HostKind, HostActivityState> = {
+  CODEX: 'NOT_SEEN',
+  CLAUDE_DESKTOP: 'NOT_SEEN',
+}
+
+function advanceHostActivity(host: HostKind, state: HostActivityState, probe: boolean): void {
+  if (probe) return
+  if (activityOrder.indexOf(state) > activityOrder.indexOf(hostActivity[host])) hostActivity[host] = state
+}
 
 function rendezvousFile(): string {
   if (process.env.IMONFHIR_LAB_RENDEZVOUS) return process.env.IMONFHIR_LAB_RENDEZVOUS
@@ -124,6 +141,7 @@ function fixedError(error: unknown): string {
   const allowed = new Set([
     'EXPIRED_CASE', 'EVALUATION_BLOCKED', 'STALE_CASE', 'INVALID_HYPOTHESES',
     'INVALID_EVIDENCE_REFERENCE', 'SUBMISSION_LIMIT_REACHED', 'STORE_UNAVAILABLE',
+    'CONTRACT_VERSION_MISMATCH',
   ])
   return allowed.has(value) ? value : 'STORE_UNAVAILABLE'
 }
@@ -152,6 +170,31 @@ async function handleApi(request: IncomingMessage, response: ServerResponse): Pr
       return true
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/host-activity') {
+      json(response, 200, {
+        schemaVersion: 'imonfhir.host-activity.v1',
+        activity: { ...hostActivity },
+      })
+      return true
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/host-activity') {
+      const host = url.searchParams.get('host')
+      const state = url.searchParams.get('state')
+      const probe = url.searchParams.get('probe')
+      if (host !== 'CODEX' && host !== 'CLAUDE_DESKTOP') throw new Error('STORE_UNAVAILABLE')
+      if (!activityOrder.includes(state as HostActivityState)) throw new Error('STORE_UNAVAILABLE')
+      if (probe !== '0' && probe !== '1') throw new Error('STORE_UNAVAILABLE')
+      advanceHostActivity(host, state as HostActivityState, probe === '1')
+      json(response, 200, {
+        schemaVersion: 'imonfhir.host-activity.v1',
+        hostKind: host,
+        state: hostActivity[host],
+        probeIgnored: probe === '1',
+      })
+      return true
+    }
+
     if (request.method === 'POST' && url.pathname === '/api/cases') {
       const material = parseApprovedCaseMaterial(await readJson(request, 256 * 1_024))
       if (isBlocked(material)) throw new Error('EVALUATION_BLOCKED')
@@ -161,13 +204,17 @@ async function handleApi(request: IncomingMessage, response: ServerResponse): Pr
       const expiresAtMs = Date.now() + CASE_TTL_MS
       const evaluationCase: HostEvaluationCase = {
         ...material,
-        schemaVersion: 'imonfhir.host-evaluation-case.v1',
+        schemaVersion: 'imonfhir.host-evaluation-case.v2',
         caseHandle,
         caseDigest,
         expiresAt: new Date(expiresAtMs).toISOString(),
         taxonomyVersion: TAXONOMY_VERSION,
+        contractDigests: CONTRACT_DIGESTS_V2,
         requiredSubmission: {
-          axes: ['standardVersion', 'workflow', 'direction', 'actorRoles', 'destinationClass'],
+          axes: [
+            'standardVersion', 'businessWorkflow', 'exchangePattern', 'interactionKind',
+            'sourceActorRoles', 'destinationActorRoles', 'destinationClass',
+          ],
         },
       }
       cases.set(caseHandle, { evaluationCase, expiresAtMs, submissions: [], hostState: 'WAITING' })
@@ -209,7 +256,8 @@ async function handleApi(request: IncomingMessage, response: ServerResponse): Pr
         if (fixedError(error) === 'STALE_CASE') stored.hostState = 'STALE'
         throw error
       }
-      const submissionDigest = canonicalDigest({ caseDigest: submission.caseDigest, hostKind: host, submission })
+      const hypothesisDigest = deriveHypothesisDigest(submission)
+      const submissionDigest = deriveSubmissionDigest(stored.evaluationCase.caseDigest, host, hypothesisDigest)
       const duplicate = stored.submissions.find((entry) => entry.receipt.submissionDigest === submissionDigest)
       if (duplicate) {
         stored.hostState = 'RECEIVED'
@@ -220,11 +268,14 @@ async function handleApi(request: IncomingMessage, response: ServerResponse): Pr
         throw new Error('SUBMISSION_LIMIT_REACHED')
       }
       const receipt: HostHypothesisReceipt = {
-        schemaVersion: 'imonfhir.host-hypothesis-receipt.v1',
+        schemaVersion: 'imonfhir.host-hypothesis-receipt.v2',
+        taxonomyVersion: TAXONOMY_VERSION,
+        contractDigests: CONTRACT_DIGESTS_V2,
         caseHandle: handle,
         caseDigest: submission.caseDigest,
-        submissionId: `hs_${submissionDigest.slice(0, 32)}`,
+        submissionId: deriveSubmissionId(submissionDigest),
         submissionDigest,
+        hypothesisDigest,
         hostKind: host,
         state: 'PENDING_SME_REVIEW',
         deduplicated: false,
@@ -276,6 +327,8 @@ async function main(): Promise<void> {
 
   const shutdown = async () => {
     cases.clear()
+    hostActivity.CODEX = 'NOT_SEEN'
+    hostActivity.CLAUDE_DESKTOP = 'NOT_SEEN'
     await removeOwnRendezvous()
     await vite.close()
     server.close(() => process.exit(0))
