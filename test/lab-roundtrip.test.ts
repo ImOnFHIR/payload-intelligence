@@ -7,6 +7,8 @@ import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { inspectPayload } from '../packages/core/src/index.js'
 import { projectInspection, type HostEvaluationCase, type HostHypothesisSubmission } from '../packages/contracts/src/index.js'
+import { CoordinatorClient } from '../packages/mcp/src/client.js'
+import { readRendezvous } from '../packages/mcp/src/rendezvous.js'
 
 const port = 43_217
 const baseUrl = `http://127.0.0.1:${port}`
@@ -14,6 +16,14 @@ let processHandle: ChildProcess
 let temporaryDirectory: string
 let rendezvousPath: string
 let token: string
+
+function spawnLab(): ChildProcess {
+  return spawn(resolve('node_modules/.bin/tsx'), ['scripts/lab.ts'], {
+    cwd: resolve('.'),
+    env: { ...process.env, IMONFHIR_LAB_PORT: String(port), IMONFHIR_LAB_RENDEZVOUS: rendezvousPath },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+}
 
 async function waitForReady(): Promise<void> {
   for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -29,11 +39,7 @@ async function waitForReady(): Promise<void> {
 beforeAll(async () => {
   temporaryDirectory = await mkdtemp(join(tmpdir(), 'imonfhir-lab-test-'))
   rendezvousPath = join(temporaryDirectory, 'lab.json')
-  processHandle = spawn(resolve('node_modules/.bin/tsx'), ['scripts/lab.ts'], {
-    cwd: resolve('.'),
-    env: { ...process.env, IMONFHIR_LAB_PORT: String(port), IMONFHIR_LAB_RENDEZVOUS: rendezvousPath },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
+  processHandle = spawnLab()
   await waitForReady()
   const rendezvous = JSON.parse(await readFile(rendezvousPath, 'utf8')) as { token: string }
   token = rendezvous.token
@@ -124,4 +130,37 @@ describe('local UI/MCP coordinator roundtrip', () => {
     expect(afterPurge.status).toBe(400)
     expect(await afterPurge.json()).toEqual({ error: 'EXPIRED_CASE' })
   })
+})
+
+describe('a second lab launch on a busy port', () => {
+  it('exits without deleting or replacing the running lab\'s rendezvous', async () => {
+    const before = await readRendezvous(rendezvousPath)
+    const second = spawnLab()
+    try {
+      const exitCode = await new Promise<number | null | 'TIMEOUT'>((resolvePromise) => {
+        const timer = setTimeout(() => resolvePromise('TIMEOUT'), 20_000)
+        second.once('exit', (code) => {
+          clearTimeout(timer)
+          resolvePromise(code)
+        })
+      })
+      expect(exitCode).not.toBe('TIMEOUT')
+      expect(exitCode).not.toBe(0)
+    } finally {
+      second.kill('SIGKILL')
+    }
+
+    expect(await readRendezvous(rendezvousPath)).toEqual(before)
+
+    const inspection = await inspectPayload(new TextEncoder().encode(JSON.stringify({ resourceType: 'Claim', use: 'claim' })))
+    const created = await fetch(`${baseUrl}/api/cases`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(projectInspection(inspection)),
+    })
+    expect(created.status).toBe(201)
+    const { caseHandle } = await created.json() as HostEvaluationCase
+    const client = new CoordinatorClient('CODEX', () => readRendezvous(rendezvousPath))
+    expect((await client.getCase(caseHandle)).caseHandle).toBe(caseHandle)
+  }, 30_000)
 })
