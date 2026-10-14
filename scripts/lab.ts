@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { homedir, platform } from 'node:os'
 import { join, resolve } from 'node:path'
 import { randomBytes } from 'node:crypto'
@@ -61,6 +61,15 @@ async function writeRendezvous(): Promise<string> {
   }), { mode: 0o600 })
   await rename(temporary, path)
   return path
+}
+
+// Only the instance that wrote the rendezvous may remove it. A second launch that
+// loses the port race must not strand the running lab's MCP connection.
+async function removeOwnRendezvous(): Promise<void> {
+  try {
+    const current = JSON.parse(await readFile(rendezvousFile(), 'utf8')) as { pid?: unknown }
+    if (current.pid === process.pid) await rm(rendezvousFile(), { force: true })
+  } catch { /* absent or unreadable: nothing of ours to remove */ }
 }
 
 function json(response: ServerResponse, status: number, value: unknown): void {
@@ -251,11 +260,11 @@ async function main(): Promise<void> {
     })
   })
 
-  await writeRendezvous()
   await new Promise<void>((resolvePromise, rejectPromise) => {
     server.once('error', rejectPromise)
     server.listen(PORT, '127.0.0.1', resolvePromise)
   })
+  await writeRendezvous()
   process.stdout.write(`ImOnFHIR Payload Intelligence Preview: ${BASE_URL}\n`)
 
   if (process.argv.includes('--open')) {
@@ -267,7 +276,7 @@ async function main(): Promise<void> {
 
   const shutdown = async () => {
     cases.clear()
-    await rm(rendezvousFile(), { force: true })
+    await removeOwnRendezvous()
     await vite.close()
     server.close(() => process.exit(0))
   }
@@ -276,7 +285,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async () => {
-  await rm(rendezvousFile(), { force: true })
+  await removeOwnRendezvous()
   process.stderr.write(`Unable to start the local workbench. Is port ${PORT} already in use?\n`)
-  process.exitCode = 1
+  process.exit(1)
 })
