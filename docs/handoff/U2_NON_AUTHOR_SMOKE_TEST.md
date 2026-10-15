@@ -18,6 +18,9 @@ artifact, stop. Do not tag or publish a prerelease.
 - macOS with Node.js 22, Git, Codex, and Claude Desktop already available.
 - A source checkout path containing at least one space.
 - Only built-in examples and participant-created synthetic, non-PHI material.
+- Use a clean browser profile for the smoke test. If the profile was used for an
+  owner rehearsal, clear its prior **v2 sanitized records** from Results before
+  the timed run; do not clear or reinterpret any legacy v1 records.
 - The owner gives the participant only this document, the candidate commit, and
   the repository URL. The owner does not explain answers or operate the UI.
 
@@ -37,7 +40,10 @@ npm run lab
 ```
 
 Record elapsed whole minutes from the first `git clone` command until the Start
-screen is usable. The gate is ten minutes or less.
+screen is usable. The gate is ten minutes or less. The lab opens the operating
+system's default browser; close or ignore that tab, then manually open
+`http://127.0.0.1:4317` in the prepared clean browser profile. That step is part
+of the timed setup.
 
 ## Host setup and same-case review
 
@@ -66,6 +72,9 @@ screen is usable. The gate is ten minutes or less.
    disappears.
 8. Review all seven axes and the question/action sets, then use **Save this
    evaluation** for each host. Do not purge between saves.
+9. After both host evaluations are saved, use **Finish and purge case**. Confirm
+   Results contains both records, then select **Run another case** to return to
+   Start before beginning the user-supplied case.
 
 ## User-supplied synthetic case
 
@@ -75,10 +84,12 @@ screen is usable. The gate is ten minutes or less.
 4. Correct at least one submitted result and mark at least one different result
    `NOT_SCORABLE`.
 5. Review the missing-context-question and next-action sets.
-6. Save the evaluation, export canonical v2 JSONL, and confirm any legacy v1 rows
-   remain separate.
-7. Use **Finish and purge case**. Exercise the unsaved-submission warning once by
-   creating an unsaved draft before cancelling a purge.
+6. Use **Save this evaluation**.
+7. Change one reviewed decision so that the saved submission becomes unsaved,
+   select **Finish and purge case**, and cancel the unsaved-submission warning.
+   Restore the intended review and use **Save this evaluation** again.
+8. Select **Finish and purge case** and confirm the UI reaches Results.
+9. Export canonical v2 JSONL and confirm any legacy v1 rows remain separate.
 
 ## Participant explanation gate
 

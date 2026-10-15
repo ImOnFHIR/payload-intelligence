@@ -43,7 +43,7 @@ async function submit(
   evaluationCase: HostEvaluationCase,
   host: HostKind,
 ) {
-  return request.post(`${connection.baseUrl}/internal/cases/${evaluationCase.caseHandle}/submissions?host=${host}`, {
+  return request.post(`${connection.baseUrl}/internal/cases/${evaluationCase.caseHandle}/submissions?host=${host}&probe=0`, {
     headers: { authorization: `Bearer ${connection.token}` },
     data: hypothesisSubmission(evaluationCase, host),
   })
@@ -77,10 +77,22 @@ test('dual-host v2 review preserves drafts, saves both records, warns before des
   expect(projectionText).toBe(canonicalJson(approvedProjection))
   expect(projectionText).toContain('"structuralPath"')
   expect(projectionText).toContain('"countBand"')
+  await expect(page.locator('details').filter({ hasText: 'Inspect structural evidence' })).toHaveAttribute('open', '')
+  await expect(page.locator('.evidence-list')).toBeVisible()
+  await expect(page.locator('.projection-details')).not.toHaveAttribute('open', '')
 
   await page.getByRole('button', { name: 'Approve summary for AI host' }).click()
   await expect(page.getByRole('heading', { name: 'Case is available' })).toBeVisible()
   const caseHandle = (await page.locator('code.handle').textContent())!
+  await expect(page.getByLabel('Host instruction')).toHaveValue(new RegExp(caseHandle))
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error('clipboard unavailable in test')) },
+    })
+  })
+  await page.getByRole('button', { name: 'Copy host instruction' }).click()
+  await expect(page.getByText('Clipboard unavailable. Select and copy the instruction shown below.')).toBeVisible()
   const connection = await rendezvous()
   const caseResponse = await request.get(`${connection.baseUrl}/internal/cases/${caseHandle}`, {
     headers: { authorization: `Bearer ${connection.token}` },
@@ -93,7 +105,7 @@ test('dual-host v2 review preserves drafts, saves both records, warns before des
     structuralSummary: evaluationCase.structuralSummary,
   })
 
-  const staleResponse = await request.post(`${connection.baseUrl}/internal/cases/${caseHandle}/submissions?host=CODEX`, {
+  const staleResponse = await request.post(`${connection.baseUrl}/internal/cases/${caseHandle}/submissions?host=CODEX&probe=0`, {
     headers: { authorization: `Bearer ${connection.token}` },
     data: { ...hypothesisSubmission(evaluationCase, 'CODEX'), caseDigest: 'c'.repeat(64) },
   })
@@ -112,8 +124,8 @@ test('dual-host v2 review preserves drafts, saves both records, warns before des
 
   await expect(page.getByRole('heading', { name: 'Correct the host, not the payload' })).toBeVisible({ timeout: 3_000 })
   await expect(page.getByText('2 submissions received')).toBeVisible()
-  await expect(page.getByText(/Codex-mode MCP activity seen · Submitted/)).toBeVisible()
-  await expect(page.getByText(/Claude-mode MCP activity seen · Submitted/)).toBeVisible()
+  await expect(page.getByText(/Codex-mode MCP activity this lab session · Submitted/)).toBeVisible()
+  await expect(page.getByText(/Claude-mode MCP activity this lab session · Submitted/)).toBeVisible()
   await expect(axis(page, 'Standard / version').getByText('Observed format')).toBeVisible()
 
   const hostSelector = page.getByRole('combobox', { name: 'Host submission' })
@@ -124,7 +136,7 @@ test('dual-host v2 review preserves drafts, saves both records, warns before des
   await hostSelector.selectOption({ index: 0 })
   await expect(axis(page, 'Standard / version').getByRole('button', { name: 'Accept', exact: true })).toHaveClass(/selected/)
 
-  await axis(page, 'Business workflow').getByRole('button', { name: 'Correct' }).click()
+  await axis(page, 'Business workflow').getByRole('button', { name: 'Change answer' }).click()
   await axis(page, 'Business workflow').locator('select').selectOption('CLINICAL_DOCUMENTATION')
   await axis(page, 'Interaction kind').getByRole('button', { name: 'Not scorable' }).click()
   await acceptAllExcept(page, ['Standard / version', 'Business workflow', 'Interaction kind'])
@@ -188,6 +200,62 @@ test('dual-host v2 review preserves drafts, saves both records, warns before des
   })
   expect(afterPurge.status()).toBe(400)
   expect(await afterPurge.json()).toEqual({ error: 'EXPIRED_CASE' })
+
+  page.once('dialog', (dialog) => void dialog.dismiss())
+  await page.getByRole('button', { name: 'Clear v2 sanitized records' }).click()
+  await expect(page.getByRole('heading', { name: '2 evaluations' })).toBeVisible()
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: 'Clear v2 sanitized records' }).click()
+  await expect(page.getByRole('heading', { name: '0 evaluations' })).toBeVisible()
+})
+
+test('labels simulated probe submissions and prevents them from becoming saved evidence', async ({ page, request }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /FHIR JSON/ }).click()
+  await page.getByRole('button', { name: 'Approve summary for AI host' }).click()
+  const caseHandle = (await page.locator('code.handle').textContent())!
+  const connection = await rendezvous()
+  const evaluationCase = await request.get(`${connection.baseUrl}/internal/cases/${caseHandle}`, {
+    headers: { authorization: `Bearer ${connection.token}` },
+  }).then((response) => response.json()) as HostEvaluationCase
+
+  const response = await request.post(
+    `${connection.baseUrl}/internal/cases/${caseHandle}/submissions?host=CODEX&probe=1`,
+    {
+      headers: { authorization: `Bearer ${connection.token}` },
+      data: hypothesisSubmission(evaluationCase, 'CODEX'),
+    },
+  )
+  expect(response.status()).toBe(201)
+  const first = hypothesisSubmission(evaluationCase, 'CODEX')
+  const second = {
+    ...first,
+    hypotheses: {
+      ...first.hypotheses,
+      businessWorkflow: { ...first.hypotheses.businessWorkflow, value: 'CARE_COORDINATION' as const },
+    },
+  }
+  expect((await request.post(
+    `${connection.baseUrl}/internal/cases/${caseHandle}/submissions?host=CODEX&probe=1`,
+    { headers: { authorization: `Bearer ${connection.token}` }, data: second },
+  )).status()).toBe(201)
+
+  const selector = page.getByRole('combobox', { name: 'Host submission' })
+  await expect(selector).toBeVisible({ timeout: 3_000 })
+  await expect(selector.locator('option')).toHaveCount(2)
+  await expect(selector.locator('option').nth(0)).toContainText('submission 1 · simulated probe')
+  await expect(selector.locator('option').nth(1)).toContainText('submission 2 · simulated probe')
+  await expect(page.getByText('This probe submission can be reviewed, switched, and purged')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save this evaluation' })).toBeDisabled()
+  await expect(page.getByText('Simulated probe submissions cannot be saved or exported.')).toBeVisible()
+  await expect(page.getByText('Lab-session mode activity only; identity is not authenticated. Current-case submissions are counted above.')).toBeVisible()
+
+  const visible = await request.get(`${connection.baseUrl}/api/cases/${caseHandle}/submissions`)
+  expect(await visible.json()).toMatchObject({ submissions: [
+    { hostKind: 'CODEX', probe: true },
+    { hostKind: 'CODEX', probe: true },
+  ] })
+  expect((await request.delete(`${connection.baseUrl}/api/cases/${caseHandle}`)).ok()).toBe(true)
 })
 
 test('preserves v1 IndexedDB rows in the legacy store and excludes them from v2 counts', async ({ page }) => {
@@ -238,6 +306,7 @@ test('preserves v1 IndexedDB rows in the legacy store and excludes them from v2 
   const body = await readFile((await artifact.path())!, 'utf8')
   expect(JSON.parse(body)).toEqual(legacyRecord)
   expect(body).not.toContain('imonfhir.sme-evaluation-record.v2')
+  page.once('dialog', (dialog) => void dialog.accept())
   await page.getByRole('button', { name: 'Clear legacy v1 records' }).click()
   await expect(page.getByRole('heading', { name: '0 preserved v1 records' })).toBeVisible()
 })
@@ -275,9 +344,14 @@ test('recording view carries the required label and hides transient identifiers 
   await expect(page.getByTestId('approved-case-projection')).toHaveCount(0)
   await expect(page.locator('.evidence-list')).toHaveCount(0)
   await page.getByRole('button', { name: 'Approve summary for AI host' }).click()
-  await expect(page.getByText('Private case handle hidden in recording view.')).toBeVisible()
+  await expect(page.getByText('Private case handle and host instruction hidden in recording view.')).toBeVisible()
   await expect(page.locator('code.handle')).toHaveCount(0)
+  await expect(page.getByLabel('Host instruction')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Copy host instruction' })).toHaveCount(0)
   expect(await page.locator('body').innerText()).not.toMatch(/\b(?:ec|hs|sr)_[a-f0-9]{16,64}\b/i)
+  const controlValues = await page.locator('input, textarea, select').evaluateAll((elements) => elements
+    .map((element) => (element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value))
+  expect(controlValues.join('\n')).not.toMatch(/\b(?:ec|hs|sr)_[a-f0-9]{16,64}\b/i)
 })
 
 test('custom payload requires a synthetic-data assertion', async ({ page }) => {

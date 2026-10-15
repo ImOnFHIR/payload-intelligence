@@ -112,12 +112,12 @@ describe('local UI/MCP coordinator roundtrip', () => {
       ],
       proposedNextActionCodes: ['ASK_TARGETED_CONTEXT'],
     }
-    const submit = () => fetch(`${baseUrl}/internal/cases/${evaluationCase.caseHandle}/submissions?host=CODEX`, {
+    const submit = (probe: '0' | '1') => fetch(`${baseUrl}/internal/cases/${evaluationCase.caseHandle}/submissions?host=CODEX&probe=${probe}`, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify(submission),
     })
-    const stale = await fetch(`${baseUrl}/internal/cases/${evaluationCase.caseHandle}/submissions?host=CODEX`, {
+    const stale = await fetch(`${baseUrl}/internal/cases/${evaluationCase.caseHandle}/submissions?host=CODEX&probe=0`, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify({ ...submission, caseDigest: 'c'.repeat(64) }),
@@ -126,9 +126,15 @@ describe('local UI/MCP coordinator roundtrip', () => {
     expect(await stale.json()).toEqual({ error: 'STALE_CASE' })
     const staleVisible = await fetch(`${baseUrl}/api/cases/${evaluationCase.caseHandle}/submissions`)
     expect(await staleVisible.json()).toMatchObject({ state: 'STALE', submissions: [] })
-    const first = await submit()
-    expect(first.status).toBe(201)
-    const second = await submit()
+    const probeFirst = await submit('1')
+    expect(probeFirst.status).toBe(201)
+    const probeVisible = await fetch(`${baseUrl}/api/cases/${evaluationCase.caseHandle}/submissions`)
+    expect((await probeVisible.json() as { submissions: Array<{ probe: boolean }> }).submissions[0]?.probe).toBe(true)
+
+    const first = await submit('0')
+    expect(first.status).toBe(200)
+    expect((await first.json() as { deduplicated: boolean }).deduplicated).toBe(true)
+    const second = await submit('0')
     expect(second.status).toBe(200)
     expect((await second.json() as { deduplicated: boolean }).deduplicated).toBe(true)
 
@@ -137,6 +143,7 @@ describe('local UI/MCP coordinator roundtrip', () => {
     expect(visibleText).not.toContain(canary)
     expect(JSON.parse(visibleText)).toMatchObject({ state: 'RECEIVED' })
     expect(JSON.parse(visibleText).submissions).toHaveLength(1)
+    expect(JSON.parse(visibleText).submissions[0].probe).toBe(false)
 
     expect((await fetch(`${baseUrl}/api/cases/${evaluationCase.caseHandle}`, { method: 'DELETE' })).ok).toBe(true)
     const afterPurge = await fetch(`${baseUrl}/internal/cases/${evaluationCase.caseHandle}`, {
