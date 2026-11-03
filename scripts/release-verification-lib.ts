@@ -24,7 +24,12 @@ function record(value: unknown): Record<string, unknown> | undefined {
     : undefined
 }
 
-export function validateHandoffEvaluationJsonl(evaluationText: string): SmeEvaluationRecord[] {
+/**
+ * Parses an exported v2 evaluation file and enforces only what every export must satisfy: each line is a valid
+ * record in canonical form, lines are sorted by recordId, and no record repeats. The handoff gate adds its own
+ * requirements on top; a results summary needs only these.
+ */
+export function canonicalEvaluationRecords(evaluationText: string): SmeEvaluationRecord[] {
   const lines = evaluationText.endsWith('\n') ? evaluationText.slice(0, -1).split('\n') : []
   if (lines.length === 0 || lines.some((line) => line.length === 0)) throw new Error('HANDOFF_EVALUATION_JSONL_INVALID')
   const records: SmeEvaluationRecord[] = []
@@ -39,6 +44,16 @@ export function validateHandoffEvaluationJsonl(evaluationText: string): SmeEvalu
   if (new Set(records.map((entry) => entry.recordId)).size !== records.length) {
     throw new Error('HANDOFF_EVALUATION_ORDER_OR_DUPLICATE_INVALID')
   }
+  return records
+}
+
+/** Rejects an export that carries a case handle, a local path, a prompt or any other transient identifier. */
+export function assertNoEvaluationLeak(evaluationText: string): void {
+  if (evaluationLeakPatterns.some((pattern) => pattern.test(evaluationText))) throw new Error('HANDOFF_EVALUATION_LEAK')
+}
+
+export function validateHandoffEvaluationJsonl(evaluationText: string): SmeEvaluationRecord[] {
+  const records = canonicalEvaluationRecords(evaluationText)
   if (records.length < 3 || new Set(records.map((entry) => entry.contextDigest)).size < 2) {
     throw new Error('HANDOFF_REQUIRED_CONTEXTS_MISSING')
   }
@@ -57,7 +72,7 @@ export function validateHandoffEvaluationJsonl(evaluationText: string): SmeEvalu
   if (!customReviewContext) {
     throw new Error('HANDOFF_CUSTOM_REVIEW_EVIDENCE_MISSING')
   }
-  if (evaluationLeakPatterns.some((pattern) => pattern.test(evaluationText))) throw new Error('HANDOFF_EVALUATION_LEAK')
+  assertNoEvaluationLeak(evaluationText)
   return records
 }
 

@@ -3,6 +3,8 @@
 SPDX-License-Identifier: Apache-2.0
 
 Written 2026-10-14 against the U2 source candidate based on `main` at `1d21d1a`.
+Updated 2026-11-03: the `Host` header gap is fixed, the rehearsal hardening is merged, and
+an answer-key template and a results summary exist for the first real run.
 The U2 non-author and real-host gates remain unexecuted, so no preview release is
 claimed. Anything here that can go stale carries a date.
 
@@ -162,7 +164,7 @@ Tests are the evidence standard. A capability is claimed only where a test would
 | Raw payload material never reaches or persists in the coordinator; the rendezvous file is private | `test/lab-roundtrip.test.ts` — *uses a private rendezvous and never persists raw payload material* | Unit suite |
 | The host sees exactly three tools with closed input schemas, including the empty capabilities root | `test/mcp-protocol.test.ts` — *publishes only the three evaluator tools with closed roots* | Unit suite |
 | Fabricated handles, stale digests, unknown evidence, prose and extra fields fail closed | `test/mcp-protocol.test.ts` — *fails closed for fabricated handles, stale digests, unknown evidence, prose, and extra fields* | Unit suite |
-| Confidence and probability fields are rejected | `test/mcp-protocol.test.ts` — *rejects arbitrary confidence fields*; `packages/contracts/test/contracts.test.ts` — *rejects arbitrary prose and probability fields* | Unit suite |
+| Confidence and probability fields are rejected | `test/mcp-protocol.test.ts` — *rejects arbitrary confidence fields*; `packages/contracts/test/contracts.test.ts` — *accepts all seven axes and rejects v1, prose, probabilities, and extra fields* | Unit suite |
 | Counts are banded and exact byte sizes removed | `contracts.test.ts` — *bands counts, removes exact bytes, and is stable* | Unit suite |
 | Hypotheses bind the exact case material, current contract digests and offered evidence; conflict codes are axis-specific | `contracts.test.ts` — taxonomy-v2 binding and wrong-axis conflict tests | Unit suite |
 | Corrections must differ; exact-match values are derived; all seven axes and both sets are reviewed | `contracts.test.ts` — taxonomy-v2 SME record tests | Unit suite |
@@ -171,12 +173,16 @@ Tests are the evidence standard. A capability is claimed only where a test would
 | EDI-shaped input is blocked without interpretation | `core.test.ts` — *blocks standard-neutral EDI-shaped input without interpreting it* | Unit suite |
 | Submissions are rejected after the user purges a case | `mcp-protocol.test.ts` — *rejects submissions after the user purges the case* | Unit suite |
 | Both host launch modes complete the stdio handshake; probes do not advance ephemeral host activity | `mcp-protocol.test.ts`, `test/host-activity.test.ts` | Unit suite |
-| Config helpers print and check host configuration without changing it | `test/onboarding-scripts.test.ts` (three tests) | Unit suite |
+| Config helpers print and check host configuration without changing it | `test/onboarding-scripts.test.ts` (four tests) | Unit suite |
+| Public `/api/*` reads are refused when the request is addressed to any host but the lab's own, so a DNS-rebinding page cannot read lab state | `test/host-activity.test.ts` — *refuses a public read addressed to any other host* | Unit suite |
+| The results summary reads a single-host export, still refuses out-of-order, duplicated or leaking exports, and reports each dimension separately with no pooled score | `scripts/results-summary-lib.test.ts` | Unit suite |
 | A second lab launch neither strands nor replaces the running lab | `lab-roundtrip.test.ts` — *exits without deleting or replacing the running lab's rendezvous* | Unit suite, plus a manual double launch and MCP self-test |
 | Full dual-host UI flow preserves drafts, saves both records, warns before destructive purge and exports deterministic v2 JSONL | `e2e/workbench.spec.ts` | Browser suite |
 | V1 rows remain isolated; malformed browser rows fail closed; recording view hides transient identifiers and paths | `e2e/workbench.spec.ts` | Browser suite |
 | Every inspection uses a new one-operation Worker | `e2e/workbench.spec.ts` | Browser suite |
 | A custom file requires a synthetic-data assertion; blocked and expired states are explicit | `e2e/workbench.spec.ts` (two tests) | Browser suite |
+
+**Current suite, 2026-11-03:** 64 unit and integration tests in 11 files, and 8 browser tests.
 
 **Historical U1 reproduction, 2026-10-14.** The following was run on Linux with Node 22.22.0, outside the author's machine before taxonomy v2 and dual-host review were added:
 - A fresh clone and `npm run bootstrap` succeeded.
@@ -229,12 +235,13 @@ Reverting each of the three changes on its own turns the test red.
 
 ## What's next
 
-1. **Run the frozen U2 release gate.** One SME who is not the author uses the exact candidate on macOS, from a clone path containing spaces, without owner coaching. Both real hosts must submit against one case; both evaluations must be saved; a separate user-supplied synthetic case must include a correction and a not-scorable verdict; v2 JSONL must export; the case must purge; and the participant must explain the non-claims. See the [controlled checklist](handoff/U2_NON_AUTHOR_SMOKE_TEST.md).
-2. **Name what the JSONL is for.** The correction loop is the artifact. The next step is to decide which decision 20–50 corrected evaluations should inform: which axis hosts get wrong most often, or whether the structural summary is missing a marker experts rely on. Then collect toward that decision.
-3. **Smaller known gaps (2026-10-14).**
-   - The developer preview is pinned to Node 22.22.3; later Node lines are intentionally untested here.
-   - The README lists macOS as the requirement while CI also runs Linux.
-   - The `/api/*` routes do not validate the `Host` header. The exposure is limited to an active-case count, but the fix is one line.
+1. **Run it for real, as the author, first.** Fill in the [answer key](results/first-real-run/ANSWER_KEY.md) and commit it before any host sees a case, run the built-in cases through Claude Desktop and Codex, correct them, export, and summarise with `npm run results:summarize`. This produces the first real-host result. It does not meet the U2 gate, which needs someone other than the author.
+2. **Run the frozen U2 release gate.** One SME who is not the author uses the exact candidate on macOS, from a clone path containing spaces, without owner coaching. Both real hosts must submit against one case; both evaluations must be saved; a separate user-supplied synthetic case must include a correction and a not-scorable verdict; v2 JSONL must export; the case must purge; and the participant must explain the non-claims. See the [controlled checklist](handoff/U2_NON_AUTHOR_SMOKE_TEST.md).
+3. **Name what the JSONL is for.** The correction loop is the artifact. The next step is to decide which decision 20–50 corrected evaluations should inform: which axis hosts get wrong most often, or whether the structural summary is missing a marker experts rely on. Then collect toward that decision.
+4. **Smaller known gaps.**
+   - The developer preview is pinned to Node 22.22.3; later Node lines are intentionally untested here. The pin stays on purpose: the doctor and the handoff receipt both report it as a fixed code.
+   - Fixed 2026-11-03: the `/api/*` routes now refuse any request whose `Host` is not the lab's own `127.0.0.1:<port>`. Before, a DNS-rebinding page could read the active-case count and each host mode's activity state.
+   - Clarified 2026-11-03: the README now says macOS is the supported workbench platform and that CI also runs the suite on Linux.
 
 ## Run it
 
