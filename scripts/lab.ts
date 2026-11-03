@@ -33,6 +33,7 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 
 interface StoredSubmission {
   hostKind: HostKind
+  probe: boolean
   submission: HostHypothesisSubmission
   receipt: HostHypothesisReceipt
 }
@@ -127,9 +128,12 @@ function isBlocked(material: ApprovedCaseMaterial): boolean {
     material.observation.status === 'OPAQUE'
 }
 
+// A page served from another site can rebind its own hostname to 127.0.0.1. The browser then sends a same-origin
+// GET with no Origin header, so the Origin check alone would let it read /api/status and /api/host-activity. The
+// Host header still carries the attacker's hostname, so only requests addressed to this exact host are served.
 function publicOriginAllowed(request: IncomingMessage): boolean {
   const origin = request.headers.origin
-  return origin === BASE_URL || origin === undefined
+  return request.headers.host === `127.0.0.1:${PORT}` && (origin === BASE_URL || origin === undefined)
 }
 
 function internalAuthorized(request: IncomingMessage): boolean {
@@ -247,7 +251,10 @@ async function handleApi(request: IncomingMessage, response: ServerResponse): Pr
     if (request.method === 'POST' && submissionMatch?.[1]) {
       const handle = submissionMatch[1]
       const host = url.searchParams.get('host')
+      const probe = url.searchParams.get('probe')
       if (host !== 'CODEX' && host !== 'CLAUDE_DESKTOP') throw new Error('STORE_UNAVAILABLE')
+      if (probe !== '0' && probe !== '1') throw new Error('STORE_UNAVAILABLE')
+      const isProbe = probe === '1'
       const stored = activeCase(handle)
       const submission = parseHostHypothesisSubmission(await readJson(request, 32 * 1_024))
       try {
@@ -260,6 +267,7 @@ async function handleApi(request: IncomingMessage, response: ServerResponse): Pr
       const submissionDigest = deriveSubmissionDigest(stored.evaluationCase.caseDigest, host, hypothesisDigest)
       const duplicate = stored.submissions.find((entry) => entry.receipt.submissionDigest === submissionDigest)
       if (duplicate) {
+        if (duplicate.probe && !isProbe) duplicate.probe = false
         stored.hostState = 'RECEIVED'
         json(response, 200, { ...duplicate.receipt, deduplicated: true })
         return true
@@ -280,7 +288,7 @@ async function handleApi(request: IncomingMessage, response: ServerResponse): Pr
         state: 'PENDING_SME_REVIEW',
         deduplicated: false,
       }
-      stored.submissions.push({ hostKind: host, submission, receipt })
+      stored.submissions.push({ hostKind: host, probe: isProbe, submission, receipt })
       stored.hostState = 'RECEIVED'
       json(response, 201, receipt)
       return true

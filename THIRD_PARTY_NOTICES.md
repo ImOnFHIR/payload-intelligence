@@ -100,7 +100,7 @@ Generated deterministically from `package-lock.json` and installed package metad
 | ajv-formats | 3.0.1 | MIT |
 | assertion-error | 2.0.1 | MIT |
 | bidi-js | 1.1.0 | MIT |
-| body-parser | 2.3.0 | MIT |
+| body-parser | 2.4.0 | MIT |
 | bytes | 3.1.2 | MIT |
 | call-bind-apply-helpers | 1.0.2 | MIT |
 | call-bound | 1.0.4 | MIT |
@@ -137,7 +137,7 @@ Generated deterministically from `package-lock.json` and installed package metad
 | express | 5.3.0 | MIT |
 | express-rate-limit | 8.7.1 | MIT |
 | fast-deep-equal | 3.1.3 | MIT |
-| fast-uri | 3.1.8 | BSD-3-Clause |
+| fast-uri | 3.1.9 | BSD-3-Clause |
 | fdir | 6.5.0 | MIT |
 | finalhandler | 2.1.1 | MIT |
 | forwarded | 0.2.0 | MIT |
@@ -203,7 +203,7 @@ Generated deterministically from `package-lock.json` and installed package metad
 | postcss | 8.5.30 | MIT |
 | proxy-addr | 2.0.8 | MIT |
 | punycode | 2.3.1 | MIT |
-| qs | 6.16.0 | BSD-3-Clause |
+| qs | 6.17.1 | BSD-3-Clause |
 | range-parser | 1.3.0 | MIT |
 | raw-body | 3.0.2 | MIT |
 | react | 19.3.0 | MIT |
@@ -237,7 +237,7 @@ Generated deterministically from `package-lock.json` and installed package metad
 | tsx | 4.23.15 | MIT |
 | type-is | 2.1.0 | MIT |
 | typescript | 7.0.2 | Apache-2.0 |
-| undici | 8.11.2 | MIT |
+| undici | 8.12.3 | MIT |
 | undici-types | 6.21.0 | MIT |
 | unpipe | 1.0.0 | MIT |
 | vary | 1.1.2 | MIT |

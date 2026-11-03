@@ -28,7 +28,8 @@ For the reasoning behind the design, the evidence for each claim, and what is no
 ## Ten-minute start
 
 Requirements: macOS, Git, and Node.js 22.22.3. The repository includes `.nvmrc`
-and `.node-version` for common version managers.
+and `.node-version` for common version managers. CI also runs the test suite on
+Linux, but macOS is the only supported platform for the workbench and its hosts.
 
 ```bash
 git clone https://github.com/ImOnFHIR/payload-intelligence.git

@@ -26,6 +26,7 @@
     "mcp:doctor": "tsx scripts/mcp-doctor.ts",
     "mcp:self-test": "tsx scripts/mcp-self-test.ts",
     "notices:generate": "node scripts/generate-third-party-notices.mjs",
+    "results:summarize": "tsx scripts/results-summarize.ts",
     "schemas:generate": "npm run build --workspace @imonfhir/payload-core && npm run build --workspace @imonfhir/payload-contracts && tsx scripts/generate-schemas.ts",
     "secrets:check": "bash scripts/run-gitleaks.sh",
     "license:check": "node scripts/check-licenses.mjs",
