@@ -61,6 +61,7 @@ type ReviewVerdict = AxisVerdict | 'UNREVIEWED'
 
 interface SubmissionEnvelope {
   hostKind: HostKind
+  probe: boolean
   submission: HostHypothesisSubmission
   receipt: HostHypothesisReceipt
 }
@@ -204,7 +205,9 @@ async function copy(text: string): Promise<void> { await navigator.clipboard.wri
 
 function activityCopy(hostKind: HostKind, state: HostActivityState): string {
   const mode = hostKind === 'CODEX' ? 'Codex-mode' : 'Claude-mode'
-  return state === 'NOT_SEEN' ? `No ${mode} MCP activity seen` : `${mode} MCP activity seen · ${plainLabel(state)}`
+  return state === 'NOT_SEEN'
+    ? `No ${mode} MCP activity seen this lab session`
+    : `${mode} MCP activity this lab session · ${plainLabel(state)}`
 }
 
 function HostSetupCard({ title, command, hostKind, activity }: { title: string; command: string; hostKind: HostKind; activity: HostActivityState }) {
@@ -217,7 +220,7 @@ function HostSetupCard({ title, command, hostKind, activity }: { title: string; 
 
 function VerdictButtons({ value, onChange }: { value: ReviewVerdict; onChange: (value: AxisVerdict) => void }) {
   return <div className="segmented" role="group" aria-label="SME verdict">
-    {(['ACCEPTED', 'CORRECTED', 'NOT_SCORABLE'] as const).map((option) => <button key={option} className={value === option ? 'selected' : ''} onClick={() => onChange(option)}>{option === 'NOT_SCORABLE' ? 'Not scorable' : option === 'CORRECTED' ? 'Correct' : 'Accept'}</button>)}
+    {(['ACCEPTED', 'CORRECTED', 'NOT_SCORABLE'] as const).map((option) => <button key={option} className={value === option ? 'selected' : ''} onClick={() => onChange(option)}>{option === 'NOT_SCORABLE' ? 'Not scorable' : option === 'CORRECTED' ? 'Change answer' : 'Accept'}</button>)}
   </div>
 }
 
@@ -289,6 +292,7 @@ export function App() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<RecoveryMessage | null>(null)
   const [savedNotice, setSavedNotice] = useState<string | null>(null)
+  const [hostInstructionNotice, setHostInstructionNotice] = useState<string | null>(null)
   const selected = submissions.find((entry) => entry.receipt.submissionDigest === selectedDigest) ?? submissions[0]
   const review = selected ? drafts[selected.receipt.submissionDigest] : undefined
 
@@ -341,7 +345,7 @@ export function App() {
     setDrafts((current) => putDraft(current, selected.receipt.submissionDigest, next)); setSavedNotice(null)
   }
   const resetCase = () => {
-    setMaterial(null); setEvaluationCase(null); setSubmissions([]); setSelectedDigest(null); setDrafts({}); setSavedFingerprints({}); setHostRoundtripState('WAITING'); setSavedNotice(null)
+    setMaterial(null); setEvaluationCase(null); setSubmissions([]); setSelectedDigest(null); setDrafts({}); setSavedFingerprints({}); setHostRoundtripState('WAITING'); setSavedNotice(null); setHostInstructionNotice(null)
   }
   const begin = async (request: unknown) => {
     setBusy(true); setError(null); resetCase()
@@ -373,6 +377,7 @@ export function App() {
   }
   const save = async () => {
     if (!material || !evaluationCase || !selected || !review) return
+    if (selected.probe) return
     const submission = selected.submission
     const problem = reviewProblem(review, submission)
     if (problem) return
@@ -405,14 +410,33 @@ export function App() {
       smeEvaluationRecordSchema.parse(record)
       await saveRecord(record)
       setSavedFingerprints((current) => ({ ...current, [selected.receipt.submissionDigest]: reviewFingerprint(review) }))
-      setSavedNotice(`${selected.hostKind === 'CODEX' ? 'Codex-mode' : 'Claude-mode'} evaluation saved. The case remains available for the other host.`)
       await refreshRecords()
+      setSavedNotice(`${selected.hostKind === 'CODEX' ? 'Codex-mode' : 'Claude-mode'} evaluation saved. The case remains available for the other host.`)
     } catch (cause) { setError(recoveryFor(cause)) }
   }
 
   const hostPrompt = evaluationCase ? `Use the ImOnFHIR Payload Intelligence MCP. Call payload_get_evaluation_case with caseHandle ${evaluationCase.caseHandle}. Use only its approved structural summary. Submit every required v2 closed-code hypothesis with payload_submit_hypotheses. Do not ask for or infer raw payload values.` : ''
+  const copyHostInstruction = async () => {
+    try {
+      await copy(hostPrompt)
+      setHostInstructionNotice('Host instruction copied.')
+    } catch {
+      setHostInstructionNotice('Clipboard unavailable. Select and copy the instruction shown below.')
+    }
+  }
+  const clearSavedRecords = async (legacy: boolean) => {
+    const label = legacy ? 'legacy v1' : 'v2 sanitized'
+    if (!window.confirm(`Clear all ${label} records from this browser? This cannot be undone.`)) return
+    try {
+      if (legacy) await clearLegacyRecords()
+      else await clearRecords()
+      await refreshRecords()
+    } catch (cause) { setError(recoveryFor(cause)) }
+  }
   const blocked = material ? ['RESTRICTED_EDI_UNSUPPORTED', 'PDF', 'DICOM', 'ARCHIVE', 'UNKNOWN_BINARY'].includes(material.structuralSummary.format) || ['REJECTED', 'OPAQUE'].includes(material.observation.status) : false
-  const currentReviewProblem = selected && review ? reviewProblem(review, selected.submission) : null
+  const currentReviewProblem = selected?.probe
+    ? 'Simulated probe submissions cannot be saved or exported.'
+    : selected && review ? reviewProblem(review, selected.submission) : null
   const dimensionSummary = useMemo(() => DIMENSIONS.map(({ key, label }) => {
     const values = records.map((record) => record.review[key].exactMatch).filter((value): value is boolean => value !== null)
     return { key, label, correct: values.filter(Boolean).length, scored: values.length }
@@ -438,9 +462,9 @@ export function App() {
       {screen === 'EVALUATE' && material && <>
         <div className="crumbs"><button onClick={() => void finishAndPurge('START')}>← Start</button><span>Deterministic inspection</span><span>AI-host hypothesis</span><span>SME review</span></div>
         <section className="case-hero"><div><span className="eyebrow">Observed format</span><h1>{material.observation.observedFormat ?? material.structuralSummary.format}</h1><p>Status: {material.observation.status} · {material.structuralSummary.evidenceItems.length} sanitized evidence items</p></div><div className={`status-card ${blocked ? 'blocked' : ''}`}><strong>{blocked ? 'Host exposure blocked' : 'Ready for your approval'}</strong><span>{blocked ? 'This format or parser outcome cannot be sent to an AI host.' : 'Review the summary below before creating a short-lived case.'}</span></div></section>
-        <div className="case-layout"><section className="panel"><span className="eyebrow">Approved summary candidate</span><h2>What the host can see</h2><div className="safety-grid"><span>✓ No payload values</span><span>✓ No identifiers</span><span>✓ No free text</span><span>✓ Counts are banded</span></div>{recordingView ? <p className="recording-redaction">Detailed structural paths and evidence identifiers are hidden in recording view.</p> : <><details><summary>Inspect structural evidence</summary><div className="evidence-list">{material.structuralSummary.evidenceItems.map((item) => <div key={item.ref}><code>{item.ref}</code><span>{evidenceLabel(item)}</span></div>)}</div></details><div className="projection-block"><h3>Complete approved case material</h3><p>This canonical projection contains every observed or structural field approved for host retrieval. Short-lived coordinator metadata is added only after approval.</p><pre data-testid="approved-case-projection">{canonicalJson(material)}</pre></div></>}{!evaluationCase && <><p className="boundary-copy">Approving makes this complete case material—not the payload—available to your configured AI host. That host may send it to its provider.</p><button className="primary" disabled={blocked || busy} onClick={() => void approve()}>Approve summary for AI host</button></>}</section>
-          <section className="panel dark-panel"><span className="eyebrow">MCP roundtrip</span><h2>{evaluationCase ? hostRoundtripState === 'EXPIRED' ? 'Case expired' : 'Case is available' : 'Waiting for approval'}</h2>{evaluationCase && <>{hostRoundtripState !== 'EXPIRED' && <>{recordingView ? <span className="recording-redaction">Private case handle hidden in recording view.</span> : <code className="handle">{evaluationCase.caseHandle}</code>}<button className="quiet light" onClick={() => void copy(hostPrompt)}>Copy host instruction</button></>}<div className="waiting"><span className="pulse" />{hostRoundtripState === 'EXPIRED' ? 'The four-hour case window ended. Start a new inspection.' : hostRoundtripState === 'STALE' ? 'A stale submission was rejected. Ask the host to retrieve this case again.' : hostRoundtripState === 'RECEIVED' ? `${submissions.length} submission${submissions.length === 1 ? '' : 's'} received` : 'Waiting for Codex or Claude…'}</div><div className="activity-stack"><span>{activityCopy('CODEX', hostActivity.CODEX)}</span><span>{activityCopy('CLAUDE_DESKTOP', hostActivity.CLAUDE_DESKTOP)}</span><small>Mode activity only; identity is not authenticated.</small></div></>}</section></div>
-        {submissions.length > 0 && selected && review && <section className="review-panel"><div className="section-heading"><div><span className="eyebrow">SME review</span><h2>Correct the host, not the payload</h2></div><select aria-label="Host submission" value={selected.receipt.submissionDigest} onChange={(event) => setSelectedDigest(event.target.value)}>{submissions.map((entry) => { const draft = drafts[entry.receipt.submissionDigest]; const saved = draft !== undefined && savedFingerprints[entry.receipt.submissionDigest] === reviewFingerprint(draft); return <option value={entry.receipt.submissionDigest} key={entry.receipt.submissionDigest}>{entry.hostKind === 'CODEX' ? 'Codex-mode' : 'Claude-mode'} · {saved ? 'saved' : 'unsaved'}</option> })}</select></div><p className="review-instruction">Choose Accept, Correct, or Not scorable for all seven axes and both exact code sets. Drafts stay attached to each submission when you switch hosts.</p>
+        <div className="case-layout"><section className="panel"><span className="eyebrow">Approved summary candidate</span><h2>What the host can see</h2><div className="safety-grid"><span>✓ No payload values</span><span>✓ No identifiers</span><span>✓ No free text</span><span>✓ Counts are banded</span></div>{recordingView ? <p className="recording-redaction">Detailed structural paths and evidence identifiers are hidden in recording view.</p> : <><details open><summary>Inspect structural evidence</summary><div className="evidence-list">{material.structuralSummary.evidenceItems.map((item) => <div key={item.ref}><code>{item.ref}</code><span>{evidenceLabel(item)}</span></div>)}</div></details><details className="projection-details"><summary>Inspect complete machine-readable summary</summary><div className="projection-block"><h3>Complete approved case material</h3><p>This canonical projection contains every observed or structural field approved for host retrieval. Short-lived coordinator metadata is added only after approval.</p><pre data-testid="approved-case-projection">{canonicalJson(material)}</pre></div></details></>}{!evaluationCase && <><p className="boundary-copy">Approving makes this complete case material—not the payload—available to your configured AI host. That host may send it to its provider.</p><button className="primary" disabled={blocked || busy} onClick={() => void approve()}>Approve summary for AI host</button></>}</section>
+          <section className="panel dark-panel"><span className="eyebrow">MCP roundtrip</span><h2>{evaluationCase ? hostRoundtripState === 'EXPIRED' ? 'Case expired' : 'Case is available' : 'Waiting for approval'}</h2>{evaluationCase && <>{hostRoundtripState !== 'EXPIRED' && <>{recordingView ? <span className="recording-redaction">Private case handle and host instruction hidden in recording view.</span> : <><code className="handle">{evaluationCase.caseHandle}</code><label className="host-instruction">Host instruction<textarea aria-label="Host instruction" readOnly value={hostPrompt} /></label><button className="quiet light" onClick={() => void copyHostInstruction()}>{hostInstructionNotice === 'Host instruction copied.' ? 'Copied' : 'Copy host instruction'}</button>{hostInstructionNotice && <small className="copy-notice" role="status">{hostInstructionNotice}</small>}</>}</>}<div className="waiting"><span className="pulse" />{hostRoundtripState === 'EXPIRED' ? 'The four-hour case window ended. Start a new inspection.' : hostRoundtripState === 'STALE' ? 'A stale submission was rejected. Ask the host to retrieve this case again.' : hostRoundtripState === 'RECEIVED' ? `${submissions.length} submission${submissions.length === 1 ? '' : 's'} received` : 'Waiting for Codex or Claude…'}</div><div className="activity-stack"><span>{activityCopy('CODEX', hostActivity.CODEX)}</span><span>{activityCopy('CLAUDE_DESKTOP', hostActivity.CLAUDE_DESKTOP)}</span><small>Lab-session mode activity only; identity is not authenticated. Current-case submissions are counted above.</small></div></>}</section></div>
+        {submissions.length > 0 && selected && review && <section className="review-panel"><div className="section-heading"><div><span className="eyebrow">SME review</span><h2>Correct the host, not the payload</h2></div><select aria-label="Host submission" value={selected.receipt.submissionDigest} onChange={(event) => setSelectedDigest(event.target.value)}>{submissions.map((entry, index) => { const draft = drafts[entry.receipt.submissionDigest]; const saved = draft !== undefined && savedFingerprints[entry.receipt.submissionDigest] === reviewFingerprint(draft); const hostOrdinal = submissions.slice(0, index + 1).filter((candidate) => candidate.hostKind === entry.hostKind).length; return <option value={entry.receipt.submissionDigest} key={entry.receipt.submissionDigest}>{entry.hostKind === 'CODEX' ? 'Codex-mode' : 'Claude-mode'} · submission {hostOrdinal}{entry.probe ? ' · simulated probe' : ''} · {saved ? 'saved' : 'unsaved'}</option> })}</select></div><p className="review-instruction">Choose Accept, Change answer, or Not scorable for all seven axes and both exact code sets. Drafts stay attached to each submission when you switch hosts.</p>{selected.probe && <div className="probe-warning" role="status"><strong>Simulation only.</strong> This probe submission can be reviewed, switched, and purged, but it cannot be saved or exported as real-host evidence.</div>}
           <ScalarAxis label="Standard / version" hypothesis={selected.submission.hypotheses.standardVersion} options={STANDARD_VERSIONS} review={review.standardVersion} material={material} recordingView={recordingView} onChange={(value) => updateReview({ ...review, standardVersion: value })} />
           <ScalarAxis label="Business workflow" hypothesis={selected.submission.hypotheses.businessWorkflow} options={BUSINESS_WORKFLOWS} review={review.businessWorkflow} material={material} recordingView={recordingView} onChange={(value) => updateReview({ ...review, businessWorkflow: value })} />
           <ScalarAxis label="Exchange pattern" hypothesis={selected.submission.hypotheses.exchangePattern} options={EXCHANGE_PATTERNS} review={review.exchangePattern} material={material} recordingView={recordingView} onChange={(value) => updateReview({ ...review, exchangePattern: value })} />
@@ -463,8 +487,8 @@ export function App() {
           const expectedValues = expected === null ? null : Array.isArray(expected) ? expected : [expected]
           return <div className="comparison-row" role="row" key={key}><span>{label}</span><div><small>Submitted</small><ControlledValues values={submitted} /></div><div><small>SME expectation</small>{expectedValues === null ? <div className="controlled-values"><strong>Not scorable</strong><code>NOT_SCORABLE</code></div> : <ControlledValues values={expectedValues} />}</div><strong>{plainLabel(reviewValue.verdict)} · {reviewValue.exactMatch === null ? 'not scored' : reviewValue.exactMatch ? 'exact' : 'not exact'}</strong></div>
         })}</div></article>)}</section>)}</section>
-        <section className="legacy-panel"><div><span className="eyebrow">Legacy isolation</span><h2>{legacyRecords.length} preserved v1 record{legacyRecords.length === 1 ? '' : 's'}</h2><p>V1 rows keep their original semantics. They are never remapped into taxonomy v2 or included in the counts above.</p></div><div className="result-actions"><button className="quiet" disabled={!legacyRecords.length} onClick={() => downloadJsonl(legacyRecords, 'imonfhir-sme-evaluations-v1-legacy.jsonl')}>Download legacy v1 JSONL</button><button className="text-danger" disabled={!legacyRecords.length} onClick={() => void clearLegacyRecords().then(refreshRecords).catch((cause) => setError(recoveryFor(cause)))}>Clear legacy v1 records</button></div></section>
-        <button className="text-danger" disabled={!records.length} onClick={() => void clearRecords().then(refreshRecords).catch((cause) => setError(recoveryFor(cause)))}>Clear v2 sanitized records</button>
+        <section className="legacy-panel"><div><span className="eyebrow">Legacy isolation</span><h2>{legacyRecords.length} preserved v1 record{legacyRecords.length === 1 ? '' : 's'}</h2><p>V1 rows keep their original semantics. They are never remapped into taxonomy v2 or included in the counts above.</p></div><div className="result-actions"><button className="quiet" disabled={!legacyRecords.length} onClick={() => downloadJsonl(legacyRecords, 'imonfhir-sme-evaluations-v1-legacy.jsonl')}>Download legacy v1 JSONL</button><button className="text-danger" disabled={!legacyRecords.length} onClick={() => void clearSavedRecords(true)}>Clear legacy v1 records</button></div></section>
+        <button className="text-danger" disabled={!records.length} onClick={() => void clearSavedRecords(false)}>Clear v2 sanitized records</button>
       </>}
     </main>
     <footer><span>ImOnFHIR Payload Intelligence Preview</span><span>Local coordinator · Browser Worker inspection · Model-neutral MCP</span></footer>

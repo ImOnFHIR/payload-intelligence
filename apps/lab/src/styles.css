@@ -94,9 +94,13 @@ summary { cursor: pointer; color: var(--muted); }
 .projection-block h3 { font-size: 15px; margin-bottom: 7px; }
 .projection-block p { font-size: 12px; margin-bottom: 10px; }
 .projection-block pre { max-height: 260px; margin: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 8px; background: #07100e; color: #9fb2ad; padding: 13px; font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.projection-details { border-top: 0; }
 .boundary-copy { font-size: 12px; margin: 18px 0; }
 .handle { display: block; overflow-wrap: anywhere; color: var(--green); margin: 30px 0 12px; padding: 12px; background: #0c1713; border-radius: 7px; }
-.quiet.light { margin-bottom: 28px; }
+.host-instruction { display: grid; gap: 7px; margin-bottom: 12px; color: var(--muted); font-size: 12px; }
+.host-instruction textarea { min-height: 112px; resize: vertical; border: 1px solid var(--line); border-radius: 7px; background: #0c1713; color: #b9c9c5; padding: 10px; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.copy-notice { display: block; margin: 8px 0 20px; color: #b9c9c5; line-height: 1.45; }
+.quiet.light { margin-bottom: 8px; }
 .waiting { border-top: 1px solid var(--line); padding-top: 20px; color: var(--muted); font-size: 13px; }
 .activity-stack { border-top: 1px solid var(--line); display: grid; gap: 7px; margin-top: 18px; padding-top: 16px; color: #b9c9c5; font-size: 12px; }
 .activity-stack small { color: var(--muted); line-height: 1.5; }
@@ -105,6 +109,7 @@ summary { cursor: pointer; color: var(--muted); }
 .review-panel { margin-top: 36px; padding: 26px; border: 1px solid var(--line); background: var(--panel); border-radius: 15px; }
 .review-panel .section-heading { margin: 0 0 20px; }
 .review-instruction { margin: -8px 0 18px; font-size: 12px; }
+.probe-warning { margin: 0 0 18px; padding: 12px 14px; border-left: 3px solid var(--yellow); background: rgba(244,211,94,.08); color: #d8c978; font-size: 12px; line-height: 1.5; }
 select { color: var(--ink); background: #0a1411; border: 1px solid var(--line); border-radius: 7px; padding: 9px; }
 .axis-card { border-top: 1px solid var(--line); padding: 20px 0; }
 .axis-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; }

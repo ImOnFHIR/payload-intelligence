@@ -53,7 +53,7 @@ export class CoordinatorClient {
 
   async submit(submission: HostHypothesisSubmission): Promise<HostHypothesisReceipt> {
     const receipt = hostHypothesisReceiptSchema.parse(await this.request(
-      `/internal/cases/${encodeURIComponent(submission.caseHandle)}/submissions?host=${this.hostKind}`,
+      `/internal/cases/${encodeURIComponent(submission.caseHandle)}/submissions?host=${this.hostKind}&probe=${this.probe ? '1' : '0'}`,
       { method: 'POST', body: JSON.stringify(submission) },
     )) as HostHypothesisReceipt
     assertCurrentContractDigests(receipt.contractDigests)

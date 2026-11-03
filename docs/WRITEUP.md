@@ -132,7 +132,7 @@ This is the decision that makes the output useful. Every answer can be compared 
 1. Codex-mode and Claude-mode submissions can both appear against the same approved case.
 2. Draft reviews are keyed by submission digest, so switching hosts does not discard work.
 3. Each of the seven axes plus the missing-question and next-action sets starts as **unreviewed**. Nothing is accepted by default, and the evaluation cannot be saved until every dimension has a verdict.
-4. For each dimension the SME chooses **Accept**, **Correct** or **Not scorable**. A correction must differ from the host's answer; re-selecting the host's own value is rejected.
+4. For each dimension the SME chooses **Accept**, **Change answer** or **Not scorable**. A changed answer must differ from the host's answer; re-selecting the host's own value is rejected.
 5. **Save this evaluation** updates that submission's deterministic record without purging the case. After both desired host records are saved, **Finish and purge case** removes the active case. Export produces canonical taxonomy-v2 JSONL.
 6. Existing taxonomy-v1 browser rows stay in a separate legacy store. They can be exported or cleared, but they are never inferred into v2 or included in v2 comparisons.
 

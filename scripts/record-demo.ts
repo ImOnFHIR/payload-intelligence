@@ -19,7 +19,7 @@ import {
 
 const execute = promisify(execFile)
 const root = resolve('.')
-const outputDirectory = resolve('docs/media')
+const outputDirectory = resolve(process.env.IMONFHIR_DEMO_OUTPUT_DIR ?? 'docs/media')
 const outputVideo = join(outputDirectory, 'synthetic-mcp-workbench-demo.mp4')
 const outputReceipt = join(outputDirectory, 'synthetic-mcp-workbench-demo.sha256')
 const forbiddenText = ['synthetic-member', ['/', 'Users', '/'].join(''), 'file://']
@@ -48,15 +48,23 @@ async function waitForLab(baseUrl: string): Promise<void> {
 
 async function assertVisibleSurfaceSafe(page: Page, extra: string[] = []): Promise<void> {
   const visibleText = await page.locator('body').innerText()
+  const visibleControlValues = await page.locator('input, textarea, select').evaluateAll((elements) => elements
+    .filter((element) => {
+      const style = window.getComputedStyle(element)
+      return style.display !== 'none' && style.visibility !== 'hidden' && (element as HTMLElement).offsetParent !== null
+    })
+    .map((element) => (element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value)
+    .join('\n'))
+  const visibleSurface = `${visibleText}\n${visibleControlValues}`
   for (const value of [...forbiddenText, ...extra]) {
-    if (value && visibleText.includes(value)) throw new Error('DEMO_VISIBLE_SURFACE_LEAK')
+    if (value && visibleSurface.includes(value)) throw new Error('DEMO_VISIBLE_SURFACE_LEAK')
   }
-  if (/\b(?:ec|hs|sr)_[a-f0-9]{16,64}\b/.test(visibleText)) throw new Error('DEMO_VISIBLE_OPAQUE_ID_LEAK')
+  if (/\b(?:ec|hs|sr)_[a-f0-9]{16,64}\b/.test(visibleSurface)) throw new Error('DEMO_VISIBLE_OPAQUE_ID_LEAK')
 }
 
 async function installRecordingMask(page: Page): Promise<void> {
   await page.addStyleTag({ content: `
-    .review-panel .section-heading select { display: none !important; }
+    .review-panel .section-heading select, .host-instruction { display: none !important; }
     #demo-disclosure {
       position: fixed; z-index: 99999; right: 18px; bottom: 18px;
       max-width: 360px; padding: 10px 14px; border-radius: 10px;
@@ -78,7 +86,9 @@ async function installRecordingMask(page: Page): Promise<void> {
         if (element.textContent && element.textContent.startsWith('sr_')) element.textContent = 'SANITIZED RECORD ID WITHHELD';
       });
       document.querySelectorAll('.record-group-heading code').forEach(function (element) {
-        element.textContent = 'SANITIZED CONTEXT DIGEST WITHHELD';
+        if (element.textContent !== 'SANITIZED CONTEXT DIGEST WITHHELD') {
+          element.textContent = 'SANITIZED CONTEXT DIGEST WITHHELD';
+        }
       });
     };
     mask();
@@ -182,7 +192,7 @@ async function main(): Promise<void> {
     const actions = page.locator('.axis-card').filter({ hasText: 'Next actions' })
     await standardVersion.getByRole('button', { name: 'Accept' }).click()
     await workflow.scrollIntoViewIfNeeded()
-    await workflow.getByRole('button', { name: 'Correct' }).click()
+    await workflow.getByRole('button', { name: 'Change answer' }).click()
     await workflow.locator('select').selectOption('CARE_COORDINATION')
     await exchangePattern.getByRole('button', { name: 'Accept' }).click()
     await interactionKind.getByRole('button', { name: 'Accept' }).click()
@@ -197,8 +207,21 @@ async function main(): Promise<void> {
     await page.waitForTimeout(1_000)
     await saveButton.click()
     await page.getByText('Codex-mode evaluation saved. The case remains available for the other host.').waitFor()
+    await page.waitForFunction(() => {
+      const labels = [...document.querySelectorAll('select[aria-label="Host submission"] option')]
+        .map((option) => option.textContent?.trim() ?? '')
+      return labels.length === 1 && labels.every((label) => label.endsWith('· saved'))
+    })
+    let stalePurgeWarning = false
+    page.once('dialog', async (dialog) => {
+      if (dialog.message() === 'This case has one or more unsaved host submissions. Finish and purge anyway?') {
+        stalePurgeWarning = true
+        await dialog.accept()
+      } else await dialog.dismiss()
+    })
     await page.getByRole('button', { name: 'Finish and purge case' }).click()
     await page.getByRole('heading', { name: '1 evaluation' }).waitFor()
+    if (stalePurgeWarning) throw new Error('DEMO_STALE_PURGE_WARNING')
     await assertVisibleSurfaceSafe(page, [evaluationCase.caseHandle])
     await page.waitForTimeout(3_000)
 
