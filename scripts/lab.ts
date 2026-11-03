@@ -128,9 +128,12 @@ function isBlocked(material: ApprovedCaseMaterial): boolean {
     material.observation.status === 'OPAQUE'
 }
 
+// A page served from another site can rebind its own hostname to 127.0.0.1. The browser then sends a same-origin
+// GET with no Origin header, so the Origin check alone would let it read /api/status and /api/host-activity. The
+// Host header still carries the attacker's hostname, so only requests addressed to this exact host are served.
 function publicOriginAllowed(request: IncomingMessage): boolean {
   const origin = request.headers.origin
-  return origin === BASE_URL || origin === undefined
+  return request.headers.host === `127.0.0.1:${PORT}` && (origin === BASE_URL || origin === undefined)
 }
 
 function internalAuthorized(request: IncomingMessage): boolean {
